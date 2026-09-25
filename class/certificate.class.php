@@ -477,7 +477,7 @@ class Certificate extends CommonObject
 	 * @param array<int,float> $requestedQty Requested quantities by order-line ID
 	 * @return int 1 on success, negative value on error
 	 */
-	public function updateDraftFromOrder($order, $user, $dateCompletion, $notePublic, array $requestedQty)
+	public function updateDraftFromOrder($order, $user, $dateCompletion, $notePublic, array $requestedQty, $progressPercent = null)
 	{
 		global $langs;
 
@@ -494,49 +494,86 @@ class Certificate extends CommonObject
 			return -3;
 		}
 
-		$order->getLinesArray();
-		$used = $this->getUsedQuantitiesForOrder((int) $order->id, (int) $this->id);
-		$linesToCreate = array();
-
-		foreach ($order->lines as $line) {
-			$lineId = (int) $line->id;
-			$orderedQty = (float) $line->qty;
-			$usedQty = (float) ($used[$lineId] ?? 0.0);
-			$availableQty = max(0.0, $orderedQty - $usedQty);
-			$qty = max(0.0, (float) ($requestedQty[$lineId] ?? 0.0));
-
-			if ($qty > $availableQty) {
-				$qty = $availableQty;
-			}
-			if ($qty <= 0) {
-				continue;
-			}
-
-			$linesToCreate[] = array('line' => $line, 'qty' => $qty);
+		$lockedMode = $this->getActiveCompletionModeForOrder((int) $order->id, (int) $this->id);
+		if ($lockedMode !== null && $lockedMode !== (int) $this->completion_mode) {
+			$this->error = $langs->trans('CompletionCertificateOrderModeLocked');
+			return -4;
 		}
 
-		if (empty($linesToCreate)) {
-			$this->error = $langs->trans('CompletionCertificateNoQuantity');
-			return -4;
+		$order->getLinesArray();
+		$orderTotalHt = (float) $order->total_ht;
+		$totalHt = 0.0;
+		$linesToCreate = array();
+
+		if ($this->completion_mode === self::MODE_PROGRESS) {
+			if ($orderTotalHt <= 0) {
+				$this->error = $langs->trans('CompletionCertificateProgressRequiresPositiveAmount');
+				return -5;
+			}
+
+			$usedProgress = $this->getUsedProgressForOrder((int) $order->id, (int) $this->id);
+			$remainingProgress = max(0.0, 100.0 - $usedProgress);
+			$progressPercent = max(0.0, (float) $progressPercent);
+
+			if ($progressPercent <= 0 || $progressPercent > $remainingProgress + 0.000001) {
+				$this->error = $langs->trans('CompletionCertificateInvalidProgress', price($remainingProgress));
+				return -6;
+			}
+
+			$totalHt = round($orderTotalHt * ($progressPercent / 100.0), 8);
+		} else {
+			$progressPercent = 0.0;
+			$used = $this->getUsedQuantitiesForOrder((int) $order->id, (int) $this->id);
+
+			foreach ($order->lines as $line) {
+				$lineId = (int) $line->id;
+				$orderedQty = (float) $line->qty;
+				$usedQty = (float) ($used[$lineId] ?? 0.0);
+				$availableQty = max(0.0, $orderedQty - $usedQty);
+				$qty = max(0.0, (float) ($requestedQty[$lineId] ?? 0.0));
+
+				if ($qty > $availableQty) {
+					$qty = $availableQty;
+				}
+				if ($qty <= 0) {
+					continue;
+				}
+
+				$lineTotalHt = self::calculateLineNetAmount($line, $qty);
+				$totalHt += $lineTotalHt;
+				$linesToCreate[] = array(
+					'line' => $line,
+					'qty' => $qty,
+					'total_ht' => $lineTotalHt,
+				);
+			}
+
+			if (empty($linesToCreate)) {
+				$this->error = $langs->trans('CompletionCertificateNoQuantity');
+				return -7;
+			}
 		}
 
 		$this->db->begin();
 
 		$sql = 'UPDATE '.$this->db->prefix().'completioncertificate';
 		$sql .= " SET date_completion = '".$this->db->escape($dateCompletion)."'";
+		$sql .= ', progress_percent = '.((float) $progressPercent);
+		$sql .= ', order_total_ht = '.((float) $orderTotalHt);
+		$sql .= ', total_ht = '.((float) $totalHt);
 		$sql .= ", note_public = '".$this->db->escape($notePublic)."'";
 		$sql .= ' WHERE rowid = '.((int) $this->id);
 		$sql .= ' AND status = '.self::STATUS_DRAFT;
 		if (!$this->db->query($sql)) {
 			$this->error = $this->db->lasterror();
 			$this->db->rollback();
-			return -5;
+			return -8;
 		}
 
 		if (!$this->db->query('DELETE FROM '.$this->db->prefix().'completioncertificate_line WHERE fk_completioncertificate = '.((int) $this->id))) {
 			$this->error = $this->db->lasterror();
 			$this->db->rollback();
-			return -6;
+			return -9;
 		}
 
 		foreach ($linesToCreate as $item) {
@@ -545,7 +582,7 @@ class Certificate extends CommonObject
 			$description = self::buildOrderLineDescription($line);
 
 			$sql = 'INSERT INTO '.$this->db->prefix().'completioncertificate_line (';
-			$sql .= 'fk_completioncertificate, fk_commandedet, fk_product, description, qty_ordered, qty_certified, rang';
+			$sql .= 'fk_completioncertificate, fk_commandedet, fk_product, description, qty_ordered, qty_certified, total_ht, rang';
 			$sql .= ') VALUES (';
 			$sql .= ((int) $this->id).',';
 			$sql .= ((int) $line->id).',';
@@ -553,12 +590,13 @@ class Certificate extends CommonObject
 			$sql .= "'".$this->db->escape($description)."',";
 			$sql .= ((float) $line->qty).',';
 			$sql .= $qty.',';
+			$sql .= ((float) $item['total_ht']).',';
 			$sql .= ((int) $line->rang).')';
 
 			if (!$this->db->query($sql)) {
 				$this->error = $this->db->lasterror();
 				$this->db->rollback();
-				return -7;
+				return -10;
 			}
 		}
 
