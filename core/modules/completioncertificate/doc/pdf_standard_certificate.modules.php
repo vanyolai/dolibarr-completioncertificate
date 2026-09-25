@@ -131,7 +131,7 @@ class pdf_standard_certificate extends ModelePDFCertificate
 			$rowHeight = max(7.0, $descHeight);
 
 			if ($pdf->GetY() + $rowHeight > ($this->page_hauteur - $heightForFooter - 5)) {
-				$this->_pagefoot($pdf, $object, $outputlangs, 1);
+				$this->_writePageFooter($pdf, $object, $outputlangs, 1);
 				$pdf->AddPage();
 				$pdf->setPageOrientation('', true, $heightForFooter);
 				if (!empty($tplidx)) {
@@ -166,7 +166,7 @@ class pdf_standard_certificate extends ModelePDFCertificate
 		);
 		$this->_writeSignatureBlock($pdf, $object, $outputlangs, $fontSize);
 
-		$this->_pagefoot($pdf, $object, $outputlangs, 0);
+		$this->_writePageFooter($pdf, $object, $outputlangs, 0);
 		if (method_exists($pdf, 'AliasNbPages')) {
 			$pdf->AliasNbPages();
 		}
@@ -328,7 +328,7 @@ class pdf_standard_certificate extends ModelePDFCertificate
 			return;
 		}
 
-		$this->_pagefoot($pdf, $object, $outputlangs, 1);
+		$this->_writePageFooter($pdf, $object, $outputlangs, 1);
 		$pdf->AddPage();
 		$pdf->setPageOrientation('', true, $heightForFooter);
 		if (!empty($tplidx)) {
@@ -428,6 +428,19 @@ class pdf_standard_certificate extends ModelePDFCertificate
 		$pdf->Cell($qtyWidth, 8, $outputlangs->transnoentities('OrderedQty'), 1, 0, 'C', true);
 		$pdf->Cell($qtyWidth, 8, $outputlangs->transnoentities('CertifiedQty'), 1, 1, 'C', true);
 	}
+
+
+	/**
+	 * Render the footer exactly like Dolibarr core PDF models: remove the
+	 * automatic bottom break zone on the current page before pdf_pagefoot()
+	 * writes into that reserved area.
+	 */
+	protected function _writePageFooter(&$pdf, $object, $outputlangs, $hidefreetext = 0)
+	{
+		$pdf->setPageOrientation('', true, 0);
+		return $this->_pagefoot($pdf, $object, $outputlangs, $hidefreetext);
+	}
+
 
 	protected function _pagefoot(&$pdf, $object, $outputlangs, $hidefreetext = 0)
 	{
