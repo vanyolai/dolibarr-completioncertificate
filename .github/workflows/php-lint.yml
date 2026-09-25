@@ -46,3 +46,12 @@ jobs:
             echo "Invalidation is a status transition, not a delete-style action."
             exit 1
           fi
+
+      - name: Guard core-style footer rendering
+        run: |
+          grep -F "setPageOrientation('', true, 0);" core/modules/completioncertificate/doc/pdf_standard_certificate.modules.php
+          grep -F "return \$this->_pagefoot(\$pdf, \$object, \$outputlangs, \$hidefreetext);" core/modules/completioncertificate/doc/pdf_standard_certificate.modules.php
+          if grep -nE "\$this->_pagefoot\(\$pdf, \$object, \$outputlangs" core/modules/completioncertificate/doc/pdf_standard_certificate.modules.php | grep -v "return"; then
+            echo "Direct footer calls are forbidden; use _writePageFooter() so the reserved bottom margin is cleared first."
+            exit 1
+          fi
