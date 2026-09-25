@@ -47,7 +47,7 @@ OrderNetAmount=Order net amount
 NetAmount=Net amount
 CertifiedNetAmount=Certified net amount
 PreviouslyCertifiedProgress=Previously certified progress
-CurrentProgress=Progress certified by this certificate
+CurrentProgress=Progress certified in this certificate
 CumulativeProgress=Cumulative progress
 RemainingProgress=Remaining progress
 AvailableProgress=Available progress
@@ -57,4 +57,4 @@ CompletionCertificateOrderModeLocked=The order already has an active completion 
 CompletionCertificateProgressRequiresPositiveAmount=Progress-based completion requires an order with a positive net amount.
 CompletionCertificateInvalidProgress=Invalid progress percentage. At most %s %% can be certified.
 CompletionCertificateProgressAcceptanceStatement=The Customer confirms that the Contractor has performed the works under the referenced order or contract to the progress level stated in this document. Subject to any remarks or reservations, the Customer accepts this performance.
-
+ProgressIncrementHint=Enter the additional progress certified by this certificate; cumulative progress is calculated automatically.
