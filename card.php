@@ -473,15 +473,49 @@ if ($orderId > 0 && $id <= 0) {
 	print '<tr><td>'.$langs->trans('ThirdParty').'</td><td>'.$certificate->thirdparty->getNomUrl(1).'</td></tr>';
 	print '<tr><td>'.$langs->trans('Order').'</td><td><a href="'.DOL_URL_ROOT.'/commande/card.php?id='.((int) $certificate->fk_commande).'">'.dol_escape_htmltag($certificate->order_ref).'</a></td></tr>';
 	print '<tr><td>'.$langs->trans('CompletionDate').'</td><td>'.dol_print_date($db->jdate($certificate->date_completion), 'day').'</td></tr>';
+	print '<tr><td>'.$langs->trans('CompletionMode').'</td><td>'.dol_escape_htmltag($certificate->getCompletionModeLabel($langs)).'</td></tr>';
+	if ($certificate->completion_mode === Certificate::MODE_PROGRESS) {
+		print '<tr><td>'.$langs->trans('CurrentProgress').'</td><td>'.price($certificate->progress_percent).' %</td></tr>';
+	}
+	print '<tr><td>'.$langs->trans('CertifiedNetAmount').'</td><td>'.price($certificate->total_ht).'</td></tr>';
 	print '<tr><td>'.$langs->trans('Status').'</td><td>'.$certificate->getLibStatut(5).'</td></tr>';
 	print '</table><br>';
 
-	print '<div class="div-table-responsive-no-min"><table class="noborder centpercent">';
-	print '<tr class="liste_titre"><td>'.$langs->trans('Description').'</td><td class="right">'.$langs->trans('OrderedQty').'</td><td class="right">'.$langs->trans('CertifiedQty').'</td></tr>';
-	foreach ($certificate->lines as $line) {
-		print '<tr><td>'.dol_htmlentitiesbr($line->description).'</td><td class="right">'.price($line->qty_ordered).'</td><td class="right">'.price($line->qty_certified).'</td></tr>';
+	if ($certificate->completion_mode === Certificate::MODE_PROGRESS) {
+		$previousProgress = $certificate->getUsedProgressForOrder((int) $certificate->fk_commande, (int) $certificate->id);
+		$cumulativeProgress = min(100.0, $previousProgress + (float) $certificate->progress_percent);
+		$remainingProgress = max(0.0, 100.0 - $cumulativeProgress);
+
+		print '<table class="border centpercent">';
+		print '<tr><td class="titlefield">'.$langs->trans('OrderNetAmount').'</td><td class="right">'.price($certificate->order_total_ht).'</td></tr>';
+		print '<tr><td>'.$langs->trans('PreviouslyCertifiedProgress').'</td><td class="right">'.price($previousProgress).' %</td></tr>';
+		print '<tr><td>'.$langs->trans('CurrentProgress').'</td><td class="right">'.price($certificate->progress_percent).' %</td></tr>';
+		print '<tr><td>'.$langs->trans('CumulativeProgress').'</td><td class="right">'.price($cumulativeProgress).' %</td></tr>';
+		print '<tr><td>'.$langs->trans('RemainingProgress').'</td><td class="right">'.price($remainingProgress).' %</td></tr>';
+		print '<tr><td>'.$langs->trans('CertifiedNetAmount').'</td><td class="right"><strong>'.price($certificate->total_ht).'</strong></td></tr>';
+		print '</table>';
+	} else {
+		print '<div class="div-table-responsive-no-min"><table class="noborder centpercent">';
+		print '<tr class="liste_titre">';
+		print '<td>'.$langs->trans('Description').'</td>';
+		print '<td class="right">'.$langs->trans('OrderedQty').'</td>';
+		print '<td class="right">'.$langs->trans('CertifiedQty').'</td>';
+		print '<td class="right">'.$langs->trans('NetAmount').'</td>';
+		print '</tr>';
+		foreach ($certificate->lines as $line) {
+			print '<tr>';
+			print '<td>'.dol_htmlentitiesbr($line->description).'</td>';
+			print '<td class="right">'.price($line->qty_ordered).'</td>';
+			print '<td class="right">'.price($line->qty_certified).'</td>';
+			print '<td class="right">'.price($line->total_ht).'</td>';
+			print '</tr>';
+		}
+		print '<tr class="liste_total">';
+		print '<td>'.$langs->trans('Total').'</td><td></td><td></td>';
+		print '<td class="right">'.price($certificate->total_ht).'</td>';
+		print '</tr>';
+		print '</table></div>';
 	}
-	print '</table></div>';
 
 	if ($certificate->note_public !== '') {
 		print '<br><div class="opacitymedium">'.$langs->trans('NotePublic').'</div>';
