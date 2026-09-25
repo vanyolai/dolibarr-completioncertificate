@@ -6,7 +6,7 @@ if (empty($conf) || !is_object($conf)) {
 	exit(1);
 }
 
-global $linkedObjectBlock, $noMoreLinkedObjectBlockAfter, $user;
+global $linkedObjectBlock, $noMoreLinkedObjectBlockAfter, $user, $db;
 
 $langs->load('completioncertificate@completioncertificate');
 
@@ -29,7 +29,7 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 	$thirdRef = !empty($objectlink->ref_customer) ? $objectlink->ref_customer : $objectlink->ref;
 	print '<td class="linkedcol-ref tdoverflowmax150" title="'.dol_escape_htmltag($thirdRef).'">'.dol_escape_htmltag($thirdRef).'</td>';
 
-	$dateCompletion = !empty($objectlink->date_completion) ? $objectlink->db->jdate($objectlink->date_completion) : 0;
+	$dateCompletion = !empty($objectlink->date_completion) ? $db->jdate($objectlink->date_completion) : 0;
 	print '<td class="linkedcol-date center">'.dol_print_date($dateCompletion, 'day').'</td>';
 
 	print '<td class="linkedcol-amount right nowraponall">';
