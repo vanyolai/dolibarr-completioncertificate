@@ -1,7 +1,13 @@
 ALTER TABLE llx_completioncertificate
- ADD COLUMN IF NOT EXISTS completion_mode smallint NOT NULL DEFAULT 0 AFTER date_completion,
- ADD COLUMN IF NOT EXISTS progress_percent double(24,8) NOT NULL DEFAULT 0 AFTER completion_mode,
- ADD COLUMN IF NOT EXISTS order_total_ht double(24,8) NOT NULL DEFAULT 0 AFTER progress_percent,
+ ADD COLUMN IF NOT EXISTS completion_mode smallint NOT NULL DEFAULT 0 AFTER date_completion;
+
+ALTER TABLE llx_completioncertificate
+ ADD COLUMN IF NOT EXISTS progress_percent double(24,8) NOT NULL DEFAULT 0 AFTER completion_mode;
+
+ALTER TABLE llx_completioncertificate
+ ADD COLUMN IF NOT EXISTS order_total_ht double(24,8) NOT NULL DEFAULT 0 AFTER progress_percent;
+
+ALTER TABLE llx_completioncertificate
  ADD COLUMN IF NOT EXISTS total_ht double(24,8) NOT NULL DEFAULT 0 AFTER order_total_ht;
 
 ALTER TABLE llx_completioncertificate_line
