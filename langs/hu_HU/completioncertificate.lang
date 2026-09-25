@@ -47,7 +47,7 @@ OrderNetAmount=Megrendelés nettó összege
 NetAmount=Nettó összeg
 CertifiedNetAmount=Igazolt nettó összeg
 PreviouslyCertifiedProgress=Korábban igazolt készültség
-CurrentProgress=Jelen TIG készültségi foka
+CurrentProgress=Jelen TIG-ben igazolt készültség
 CumulativeProgress=Összesített készültség
 RemainingProgress=Fennmaradó készültség
 AvailableProgress=Igazolható készültség
@@ -57,4 +57,4 @@ CompletionCertificateOrderModeLocked=A megrendelésen már van aktív teljesít�
 CompletionCertificateProgressRequiresPositiveAmount=Készültségi arányos teljesítés csak pozitív nettó összegű megrendeléshez használható.
 CompletionCertificateInvalidProgress=Érvénytelen készültségi arány. Legfeljebb %s %% igazolható.
 CompletionCertificateProgressAcceptanceStatement=A Megrendelő igazolja, hogy a Vállalkozó a hivatkozott megrendelés vagy szerződés szerinti munkákat a jelen dokumentumban megjelölt készültségi foknak megfelelő mértékben teljesítette. A Megrendelő a teljesítést – az esetleges megjegyzések és fenntartások figyelembevételével – elfogadja.
-
+ProgressIncrementHint=A százalék az adott TIG-ben újonnan igazolt rész; az összesített készültséget a rendszer számolja.
