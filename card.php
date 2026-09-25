@@ -355,7 +355,6 @@ if ($orderId > 0 && $id <= 0) {
 		});
 		</script>';
 	}
-}
 
 // Edit draft.
 } elseif ($id > 0 && $action === 'edit') {
