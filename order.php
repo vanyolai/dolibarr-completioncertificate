@@ -71,6 +71,7 @@ if (!$resql) {
 	print '</tr>';
 
 	$count = 0;
+	$totalActive = 0.0;
 	while ($row = $db->fetch_object($resql)) {
 		$count++;
 		$certificate = new Certificate($db);
@@ -86,9 +87,25 @@ if (!$resql) {
 		}
 		print '</td>';
 		print '<td class="center">'.dol_print_date($db->jdate($row->date_completion), 'day').'</td>';
-		print '<td class="right">'.price($certificate->total_ht).'</td>';
+		print '<td class="right">';
+		if ($certificate->status === Certificate::STATUS_CANCELED) {
+			print '<strike>'.price($certificate->total_ht).'</strike>';
+		} else {
+			$totalActive += (float) $certificate->total_ht;
+			print price($certificate->total_ht);
+		}
+		print '</td>';
 		print '<td class="center">'.dol_print_date($db->jdate($row->datec), 'dayhour').'</td>';
 		print '<td class="right">'.$certificate->getLibStatut(3).'</td>';
+		print '</tr>';
+	}
+
+	if ($count > 1) {
+		print '<tr class="liste_total">';
+		print '<td>'.$langs->trans('Total').'</td>';
+		print '<td></td><td></td>';
+		print '<td class="right">'.price($totalActive).'</td>';
+		print '<td></td><td></td>';
 		print '</tr>';
 	}
 
