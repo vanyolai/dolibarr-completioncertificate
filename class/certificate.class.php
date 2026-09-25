@@ -613,6 +613,16 @@ class Certificate extends CommonObject
 	 */
 	private function canReserveCurrentQuantities()
 	{
+		$lockedMode = $this->getActiveCompletionModeForOrder((int) $this->fk_commande, (int) $this->id);
+		if ($lockedMode !== null && $lockedMode !== (int) $this->completion_mode) {
+			return false;
+		}
+
+		if ($this->completion_mode === self::MODE_PROGRESS) {
+			$usedProgress = $this->getUsedProgressForOrder((int) $this->fk_commande, (int) $this->id);
+			return ($usedProgress + (float) $this->progress_percent) <= 100.000001;
+		}
+
 		require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
 
 		$order = new Commande($this->db);
