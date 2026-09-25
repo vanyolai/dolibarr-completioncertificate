@@ -18,6 +18,9 @@ class Certificate extends CommonObject
 	public const STATUS_VALIDATED = 1;
 	public const STATUS_CANCELED = 9;
 
+	public const MODE_LINES = 0;
+	public const MODE_PROGRESS = 1;
+
 	public $module = 'completioncertificate';
 	public $element = 'certificate';
 	public $table_element = 'completioncertificate';
@@ -33,12 +36,17 @@ class Certificate extends CommonObject
 	public $fk_soc = 0;
 	public $fk_commande = 0;
 	public $date_completion = '';
+	public $completion_mode = self::MODE_LINES;
+	public $progress_percent = 0.0;
+	public $order_total_ht = 0.0;
+	public $total_ht = 0.0;
 	public $note_public = '';
 	public $status = self::STATUS_DRAFT;
 	public $fk_user_author = 0;
 	public $fk_user_valid = 0;
 	public $date_creation = 0;
 	public $order_ref = '';
+	public $ref_customer = '';
 	public $thirdparty_name = '';
 	public $model_pdf = 'standard_certificate';
 	public $lines = array();
@@ -59,7 +67,7 @@ class Certificate extends CommonObject
 	{
 		global $conf;
 
-		$sql = 'SELECT c.*, s.nom AS thirdparty_name, co.ref AS order_ref';
+		$sql = 'SELECT c.*, s.nom AS thirdparty_name, co.ref AS order_ref, co.ref_client AS ref_customer';
 		$sql .= ' FROM '.$this->db->prefix().'completioncertificate AS c';
 		$sql .= ' INNER JOIN '.$this->db->prefix().'societe AS s ON s.rowid = c.fk_soc';
 		$sql .= ' INNER JOIN '.$this->db->prefix().'commande AS co ON co.rowid = c.fk_commande';
@@ -92,12 +100,17 @@ class Certificate extends CommonObject
 		$this->socid = (int) $obj->fk_soc;
 		$this->fk_commande = (int) $obj->fk_commande;
 		$this->date_completion = (string) $obj->date_completion;
+		$this->completion_mode = (int) ($obj->completion_mode ?? self::MODE_LINES);
+		$this->progress_percent = (float) ($obj->progress_percent ?? 0);
+		$this->order_total_ht = (float) ($obj->order_total_ht ?? 0);
+		$this->total_ht = (float) ($obj->total_ht ?? 0);
 		$this->note_public = (string) ($obj->note_public ?? '');
 		$this->status = (int) $obj->status;
 		$this->fk_user_author = (int) ($obj->fk_user_author ?? 0);
 		$this->fk_user_valid = (int) ($obj->fk_user_valid ?? 0);
 		$this->date_creation = !empty($obj->datec) ? $this->db->jdate($obj->datec) : 0;
 		$this->order_ref = (string) $obj->order_ref;
+		$this->ref_customer = (string) ($obj->ref_customer ?? '');
 		$this->thirdparty_name = (string) $obj->thirdparty_name;
 
 		return $this->fetchLines();
