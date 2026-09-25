@@ -331,7 +331,7 @@ if ($orderId > 0 && $id <= 0) {
 	print '<input class="width75 right" type="number" step="0.01" min="0.01" max="'.price2num($remainingProgress).'" name="progress_percent" value="'.dol_escape_htmltag(GETPOST('progress_percent', 'alphanohtml')).'"> %';
 	print '</td></tr>';
 	print '</table>';
-	print '<div class="opacitymedium">'.$langs->trans('ProgressAmountHint').'</div>';
+	print '<div class="opacitymedium">'.$langs->trans('ProgressIncrementHint').' '.$langs->trans('ProgressAmountHint').'</div>';
 	print '</div>';
 
 	print '<br><label for="note_public">'.$langs->trans('NotePublic').'</label><br>';
@@ -394,6 +394,7 @@ if ($orderId > 0 && $id <= 0) {
 		print '<input class="width75 right" type="number" step="0.01" min="0.01" max="'.price2num($availableProgress).'" name="progress_percent" value="'.price2num($certificate->progress_percent).'"> %';
 		print '</td></tr>';
 		print '</table>';
+		print '<div class="opacitymedium">'.$langs->trans('ProgressIncrementHint').' '.$langs->trans('ProgressAmountHint').'</div>';
 	} else {
 		$usedQuantities = $certificate->getUsedQuantitiesForOrder((int) $order->id, (int) $certificate->id);
 		$currentQty = array();
