@@ -369,12 +369,6 @@ if ($orderId > 0 && $id <= 0) {
 	}
 	$order->fetch_thirdparty();
 
-	$usedQuantities = $certificate->getUsedQuantitiesForOrder((int) $order->id, (int) $certificate->id);
-	$currentQty = array();
-	foreach ($certificate->lines as $certificateLine) {
-		$currentQty[(int) $certificateLine->fk_commandedet] = (float) $certificateLine->qty_certified;
-	}
-
 	print '<form method="post" action="'.dol_escape_htmltag($_SERVER['PHP_SELF']).'">';
 	print '<input type="hidden" name="token" value="'.newToken().'">';
 	print '<input type="hidden" name="action" value="update">';
@@ -385,35 +379,56 @@ if ($orderId > 0 && $id <= 0) {
 	print '<tr><td>'.$langs->trans('Order').'</td><td>'.$order->getNomUrl(1).'</td></tr>';
 	print '<tr><td>'.$langs->trans('ThirdParty').'</td><td>'.$order->thirdparty->getNomUrl(1).'</td></tr>';
 	print '<tr><td>'.$langs->trans('CompletionDate').'</td><td><input type="date" name="date_completion" value="'.dol_escape_htmltag($certificate->date_completion).'"></td></tr>';
+	print '<tr><td>'.$langs->trans('CompletionMode').'</td><td>'.dol_escape_htmltag($certificate->getCompletionModeLabel($langs)).'</td></tr>';
 	print '</table><br>';
 
-	print '<div class="div-table-responsive-no-min"><table class="noborder centpercent">';
-	print '<tr class="liste_titre">';
-	print '<td>'.$langs->trans('Description').'</td>';
-	print '<td class="right">'.$langs->trans('OrderedQty').'</td>';
-	print '<td class="right">'.$langs->trans('AlreadyCertifiedQty').'</td>';
-	print '<td class="right">'.$langs->trans('RemainingQty').'</td>';
-	print '<td class="right">'.$langs->trans('CertifiedQty').'</td>';
-	print '</tr>';
+	if ($certificate->completion_mode === Certificate::MODE_PROGRESS) {
+		$usedProgress = $certificate->getUsedProgressForOrder((int) $order->id, (int) $certificate->id);
+		$availableProgress = max(0.0, 100.0 - $usedProgress);
 
-	foreach ($order->lines as $line) {
-		$lineId = (int) $line->id;
-		$orderedQty = (float) $line->qty;
-		$usedQty = (float) ($usedQuantities[$lineId] ?? 0.0);
-		$availableQty = max(0.0, $orderedQty - $usedQty);
-		$value = (float) ($currentQty[$lineId] ?? 0.0);
+		print '<table class="border centpercent">';
+		print '<tr><td class="titlefield">'.$langs->trans('OrderNetAmount').'</td><td class="right">'.price($order->total_ht).'</td></tr>';
+		print '<tr><td>'.$langs->trans('PreviouslyCertifiedProgress').'</td><td class="right">'.price($usedProgress).' %</td></tr>';
+		print '<tr><td>'.$langs->trans('AvailableProgress').'</td><td class="right">'.price($availableProgress).' %</td></tr>';
+		print '<tr><td>'.$langs->trans('CurrentProgress').'</td><td class="right">';
+		print '<input class="width75 right" type="number" step="0.01" min="0.01" max="'.price2num($availableProgress).'" name="progress_percent" value="'.price2num($certificate->progress_percent).'"> %';
+		print '</td></tr>';
+		print '</table>';
+	} else {
+		$usedQuantities = $certificate->getUsedQuantitiesForOrder((int) $order->id, (int) $certificate->id);
+		$currentQty = array();
+		foreach ($certificate->lines as $certificateLine) {
+			$currentQty[(int) $certificateLine->fk_commandedet] = (float) $certificateLine->qty_certified;
+		}
 
-		print '<tr>';
-		print '<td>'.dol_htmlentitiesbr(Certificate::buildOrderLineDescription($line)).'</td>';
-		print '<td class="right">'.price($orderedQty).'</td>';
-		print '<td class="right">'.price($usedQty).'</td>';
-		print '<td class="right">'.price($availableQty).'</td>';
-		print '<td class="right"><input class="width75 right" type="number" step="any" min="0" max="'.price2num($availableQty).'" name="qty_'.$lineId.'" value="'.price2num($value).'"></td>';
+		print '<div class="div-table-responsive-no-min"><table class="noborder centpercent">';
+		print '<tr class="liste_titre">';
+		print '<td>'.$langs->trans('Description').'</td>';
+		print '<td class="right">'.$langs->trans('OrderedQty').'</td>';
+		print '<td class="right">'.$langs->trans('AlreadyCertifiedQty').'</td>';
+		print '<td class="right">'.$langs->trans('RemainingQty').'</td>';
+		print '<td class="right">'.$langs->trans('CertifiedQty').'</td>';
 		print '</tr>';
-	}
-	print '</table></div><br>';
 
-	print '<label for="note_public">'.$langs->trans('NotePublic').'</label><br>';
+		foreach ($order->lines as $line) {
+			$lineId = (int) $line->id;
+			$orderedQty = (float) $line->qty;
+			$usedQty = (float) ($usedQuantities[$lineId] ?? 0.0);
+			$availableQty = max(0.0, $orderedQty - $usedQty);
+			$value = (float) ($currentQty[$lineId] ?? 0.0);
+
+			print '<tr>';
+			print '<td>'.dol_htmlentitiesbr(Certificate::buildOrderLineDescription($line)).'</td>';
+			print '<td class="right">'.price($orderedQty).'</td>';
+			print '<td class="right">'.price($usedQty).'</td>';
+			print '<td class="right">'.price($availableQty).'</td>';
+			print '<td class="right"><input class="width75 right" type="number" step="any" min="0" max="'.price2num($availableQty).'" name="qty_'.$lineId.'" value="'.price2num($value).'"></td>';
+			print '</tr>';
+		}
+		print '</table></div>';
+	}
+
+	print '<br><label for="note_public">'.$langs->trans('NotePublic').'</label><br>';
 	print '<textarea id="note_public" class="quatrevingtpercent" rows="4" name="note_public">'.dol_escape_htmltag($certificate->note_public).'</textarea>';
 
 	print '<div class="center">';
