@@ -120,35 +120,45 @@ class pdf_standard_certificate extends ModelePDFCertificate
 
 		$tableY = $this->_pagehead($pdf, $object, $outputlangs);
 		$pdf->SetY($tableY);
-		$this->_tablehead($pdf, $outputlangs);
 
 		$fontSize = pdf_getPDFFontSize($outputlangs) - 1;
 		$pdf->SetFont(pdf_getPDFFont($outputlangs), '', $fontSize);
 
-		foreach ($object->lines as $line) {
-			$description = trim((string) $line->description);
-			$descHeight = max(7.0, (float) $pdf->getStringHeight($descWidth, $description));
-			$rowHeight = max(7.0, $descHeight);
+		if ((int) $object->completion_mode === $object::MODE_PROGRESS) {
+			$this->_writeProgressSummary($pdf, $object, $outputlangs, $fontSize);
+		} else {
+			$this->_tablehead($pdf, $outputlangs);
 
-			if ($pdf->GetY() + $rowHeight > ($this->page_hauteur - $heightForFooter - 5)) {
-				$this->_writePageFooter($pdf, $object, $outputlangs, 1);
-				$pdf->AddPage();
-				$pdf->setPageOrientation('', true, $heightForFooter);
-				if (!empty($tplidx)) {
-					$pdf->useTemplate($tplidx);
+			foreach ($object->lines as $line) {
+				$description = trim((string) $line->description);
+				$descHeight = max(7.0, (float) $pdf->getStringHeight($descWidth, $description));
+				$rowHeight = max(7.0, $descHeight);
+
+				if ($pdf->GetY() + $rowHeight > ($this->page_hauteur - $heightForFooter - 5)) {
+					$this->_writePageFooter($pdf, $object, $outputlangs, 1);
+					$pdf->AddPage();
+					$pdf->setPageOrientation('', true, $heightForFooter);
+					if (!empty($tplidx)) {
+						$pdf->useTemplate($tplidx);
+					}
+					$pdf->SetY($this->marge_haute + 5);
+					$this->_tablehead($pdf, $outputlangs);
+					$pdf->SetFont(pdf_getPDFFont($outputlangs), '', $fontSize);
 				}
-				$pdf->SetY($this->marge_haute + 5);
-				$this->_tablehead($pdf, $outputlangs);
-				$pdf->SetFont(pdf_getPDFFont($outputlangs), '', $fontSize);
+
+				$x = $this->marge_gauche;
+				$y = $pdf->GetY();
+
+				$pdf->MultiCell($descWidth, $rowHeight, $outputlangs->convToOutputCharset($description), 1, 'L', false, 0, $x, $y);
+				$pdf->MultiCell($qtyWidth, $rowHeight, price($line->qty_ordered), 1, 'R', false, 0, $x + $descWidth, $y);
+				$pdf->MultiCell($qtyWidth, $rowHeight, price($line->qty_certified), 1, 'R', false, 1, $x + $descWidth + $qtyWidth, $y);
+				$pdf->SetY($y + $rowHeight);
 			}
 
-			$x = $this->marge_gauche;
-			$y = $pdf->GetY();
-
-			$pdf->MultiCell($descWidth, $rowHeight, $outputlangs->convToOutputCharset($description), 1, 'L', false, 0, $x, $y);
-			$pdf->MultiCell($qtyWidth, $rowHeight, price($line->qty_ordered), 1, 'R', false, 0, $x + $descWidth, $y);
-			$pdf->MultiCell($qtyWidth, $rowHeight, price($line->qty_certified), 1, 'R', false, 1, $x + $descWidth + $qtyWidth, $y);
-			$pdf->SetY($y + $rowHeight);
+			$pdf->Ln(3);
+			$pdf->SetFont(pdf_getPDFFont($outputlangs), 'B', $fontSize);
+			$pdf->Cell(0, 5, $outputlangs->transnoentities('CertifiedNetAmount').' : '.price($object->total_ht), 0, 1, 'R');
+			$pdf->SetFont(pdf_getPDFFont($outputlangs), '', $fontSize);
 		}
 
 		// Let the explanatory/acceptance text use the remaining page efficiently.
@@ -230,7 +240,7 @@ class pdf_standard_certificate extends ModelePDFCertificate
 		$metaY = $this->_writeRightMetaLine($pdf, $titleX, $titleWidth, $metaY, $outputlangs->transnoentities('Order').' : '.$object->order_ref);
 
 		if (is_object($this->sourceOrder) && !empty($this->sourceOrder->ref_client)) {
-			$metaY = $this->_writeRightMetaLine($pdf, $titleX, $titleWidth, $metaY, $outputlangs->transnoentities('CustomerOrderReference').' : '.$this->sourceOrder->ref_client);
+			$metaY = $this->_writeRightMetaLine($pdf, $titleX, $titleWidth, $metaY, $outputlangs->transnoentities('RefCustomerOrder').' : '.$this->sourceOrder->ref_client);
 		}
 		if (is_object($this->sourceOrder) && !empty($this->sourceOrder->date)) {
 			$metaY = $this->_writeRightMetaLine(
@@ -307,6 +317,40 @@ class pdf_standard_certificate extends ModelePDFCertificate
 	}
 
 
+
+	/**
+	 * Write the financial/progress summary for percentage-based certificates.
+	 */
+	protected function _writeProgressSummary(&$pdf, $object, $outputlangs, $fontSize)
+	{
+		$previousProgress = $object->getUsedProgressForOrder((int) $object->fk_commande, (int) $object->id);
+		$cumulativeProgress = min(100.0, $previousProgress + (float) $object->progress_percent);
+		$remainingProgress = max(0.0, 100.0 - $cumulativeProgress);
+
+		$labelWidth = 105;
+		$valueWidth = ($this->page_largeur - $this->marge_gauche - $this->marge_droite) - $labelWidth;
+
+		$pdf->SetFont(pdf_getPDFFont($outputlangs), 'B', $fontSize);
+		$pdf->SetFillColor(235, 235, 235);
+		$pdf->Cell($labelWidth + $valueWidth, 8, $outputlangs->transnoentities('CompletionProgressSummary'), 1, 1, 'L', true);
+		$pdf->SetFont(pdf_getPDFFont($outputlangs), '', $fontSize);
+
+		$rows = array(
+			array($outputlangs->transnoentities('OrderNetAmount'), price($object->order_total_ht)),
+			array($outputlangs->transnoentities('PreviouslyCertifiedProgress'), price($previousProgress).' %'),
+			array($outputlangs->transnoentities('CurrentProgress'), price($object->progress_percent).' %'),
+			array($outputlangs->transnoentities('CumulativeProgress'), price($cumulativeProgress).' %'),
+			array($outputlangs->transnoentities('RemainingProgress'), price($remainingProgress).' %'),
+			array($outputlangs->transnoentities('CertifiedNetAmount'), price($object->total_ht)),
+		);
+
+		foreach ($rows as $row) {
+			$pdf->Cell($labelWidth, 7, $row[0], 1, 0, 'L');
+			$pdf->Cell($valueWidth, 7, $row[1], 1, 1, 'R');
+		}
+	}
+
+
 	/**
 	 * Write one right-aligned metadata row using its real rendered height.
 	 */
@@ -353,7 +397,9 @@ class pdf_standard_certificate extends ModelePDFCertificate
 		$pdf->MultiCell(0, 5, $heading, 0, 'L');
 
 		$pdf->SetFont(pdf_getPDFFont($outputlangs), '', $fontSize);
-		$paragraph = $outputlangs->transnoentities('CompletionCertificateAcceptanceStatement');
+		$paragraph = ((int) $object->completion_mode === $object::MODE_PROGRESS)
+			? $outputlangs->transnoentities('CompletionCertificateProgressAcceptanceStatement')
+			: $outputlangs->transnoentities('CompletionCertificateAcceptanceStatement');
 		$paragraphHeight = max(5.0, (float) $pdf->getStringHeight($usableWidth, $paragraph));
 		$this->_ensureSpaceForBlock($pdf, $object, $outputlangs, $paragraphHeight + 2, $heightForFooter, $tplidx);
 		$pdf->MultiCell(0, 5, $paragraph, 0, 'L');
