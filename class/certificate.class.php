@@ -196,6 +196,124 @@ class Certificate extends CommonObject
 		return $result;
 	}
 
+
+	/**
+	 * Return the active completion mode already used on an order.
+	 *
+	 * @param int $orderId Customer order ID
+	 * @param int $excludeCertificateId Certificate to ignore
+	 * @return int|null MODE_* or null when no active certificate exists
+	 */
+	public function getActiveCompletionModeForOrder($orderId, $excludeCertificateId = 0)
+	{
+		global $conf;
+
+		$sql = 'SELECT completion_mode';
+		$sql .= ' FROM '.$this->db->prefix().'completioncertificate';
+		$sql .= ' WHERE entity = '.((int) $conf->entity);
+		$sql .= ' AND fk_commande = '.((int) $orderId);
+		$sql .= ' AND status IN ('.self::STATUS_DRAFT.', '.self::STATUS_VALIDATED.')';
+		if ($excludeCertificateId > 0) {
+			$sql .= ' AND rowid <> '.((int) $excludeCertificateId);
+		}
+		$sql .= ' ORDER BY rowid ASC';
+		$sql .= ' LIMIT 1';
+
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return null;
+		}
+
+		$obj = $this->db->fetch_object($resql);
+		$this->db->free($resql);
+
+		return $obj ? (int) $obj->completion_mode : null;
+	}
+
+	/**
+	 * Return active progress already certified on an order.
+	 */
+	public function getUsedProgressForOrder($orderId, $excludeCertificateId = 0)
+	{
+		global $conf;
+
+		$sql = 'SELECT COALESCE(SUM(progress_percent), 0) AS progress_used';
+		$sql .= ' FROM '.$this->db->prefix().'completioncertificate';
+		$sql .= ' WHERE entity = '.((int) $conf->entity);
+		$sql .= ' AND fk_commande = '.((int) $orderId);
+		$sql .= ' AND completion_mode = '.self::MODE_PROGRESS;
+		$sql .= ' AND status IN ('.self::STATUS_DRAFT.', '.self::STATUS_VALIDATED.')';
+		if ($excludeCertificateId > 0) {
+			$sql .= ' AND rowid <> '.((int) $excludeCertificateId);
+		}
+
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return 0.0;
+		}
+
+		$obj = $this->db->fetch_object($resql);
+		$this->db->free($resql);
+
+		return (float) ($obj->progress_used ?? 0);
+	}
+
+	/**
+	 * Return active certified net amount on an order.
+	 */
+	public function getUsedAmountForOrder($orderId, $excludeCertificateId = 0)
+	{
+		global $conf;
+
+		$sql = 'SELECT COALESCE(SUM(total_ht), 0) AS amount_used';
+		$sql .= ' FROM '.$this->db->prefix().'completioncertificate';
+		$sql .= ' WHERE entity = '.((int) $conf->entity);
+		$sql .= ' AND fk_commande = '.((int) $orderId);
+		$sql .= ' AND status IN ('.self::STATUS_DRAFT.', '.self::STATUS_VALIDATED.')';
+		if ($excludeCertificateId > 0) {
+			$sql .= ' AND rowid <> '.((int) $excludeCertificateId);
+		}
+
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return 0.0;
+		}
+
+		$obj = $this->db->fetch_object($resql);
+		$this->db->free($resql);
+
+		return (float) ($obj->amount_used ?? 0);
+	}
+
+	/**
+	 * Return the net amount represented by a certified quantity of an order line.
+	 */
+	public static function calculateLineNetAmount($line, $certifiedQty)
+	{
+		$orderedQty = (float) ($line->qty ?? 0);
+		if (abs($orderedQty) < 0.00000001) {
+			return 0.0;
+		}
+
+		return round(((float) ($line->total_ht ?? 0)) * (((float) $certifiedQty) / $orderedQty), 8);
+	}
+
+	public function getCompletionModeLabel($outputlangs = null)
+	{
+		global $langs;
+		if (!is_object($outputlangs)) {
+			$outputlangs = $langs;
+		}
+
+		return $this->completion_mode === self::MODE_PROGRESS
+			? $outputlangs->trans('CompletionModeProgress')
+			: $outputlangs->trans('CompletionModeLines');
+	}
+
+
 	public function createFromOrder($order, $user, $dateCompletion, $notePublic, array $requestedQty)
 	{
 		global $conf, $langs;
