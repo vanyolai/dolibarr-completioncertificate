@@ -85,7 +85,10 @@ if ($action === 'save') {
 	}
 	$notePublic = GETPOST('note_public', 'restricthtml');
 
-	$newId = $certificate->createFromOrder($order, $user, $dateCompletion, $notePublic, $requestedQty);
+	$completionMode = GETPOSTINT('completion_mode');
+	$progressPercent = (float) price2num(GETPOST('progress_percent', 'alphanohtml'));
+
+	$newId = $certificate->createFromOrder($order, $user, $dateCompletion, $notePublic, $requestedQty, $completionMode, $progressPercent);
 	if ($newId > 0) {
 		if (!empty($certificate->warnings)) {
 			setEventMessages('', $certificate->warnings, 'warnings');
@@ -119,7 +122,8 @@ if ($action === 'update' && $id > 0) {
 		$user,
 		GETPOST('date_completion', 'alpha'),
 		GETPOST('note_public', 'restricthtml'),
-		$requestedQty
+		$requestedQty,
+		(float) price2num(GETPOST('progress_percent', 'alphanohtml'))
 	);
 
 	if ($result > 0) {
