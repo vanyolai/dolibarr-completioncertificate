@@ -133,6 +133,7 @@ class pdf_standard_certificate extends ModelePDFCertificate
 			if ($pdf->GetY() + $rowHeight > ($this->page_hauteur - $heightForFooter - 5)) {
 				$this->_pagefoot($pdf, $object, $outputlangs, 1);
 				$pdf->AddPage();
+				$pdf->setPageOrientation('', true, $heightForFooter);
 				if (!empty($tplidx)) {
 					$pdf->useTemplate($tplidx);
 				}
@@ -239,7 +240,7 @@ class pdf_standard_certificate extends ModelePDFCertificate
 		$metaY = $this->_writeRightMetaLine($pdf, $titleX, $titleWidth, $metaY, $outputlangs->transnoentities('Order').' : '.$object->order_ref);
 
 		if (is_object($this->sourceOrder) && !empty($this->sourceOrder->ref_client)) {
-			$metaY = $this->_writeRightMetaLine($pdf, $titleX, $titleWidth, $metaY, $outputlangs->transnoentities('CustomerRef').' : '.$this->sourceOrder->ref_client);
+			$metaY = $this->_writeRightMetaLine($pdf, $titleX, $titleWidth, $metaY, $outputlangs->transnoentities('CustomerOrderReference').' : '.$this->sourceOrder->ref_client);
 		}
 		if (is_object($this->sourceOrder) && !empty($this->sourceOrder->date)) {
 			$metaY = $this->_writeRightMetaLine(
