@@ -4,6 +4,7 @@
 dol_include_once('/completioncertificate/core/modules/completioncertificate/modules_certificate.php');
 require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/company.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
 
 /**
  * Standard Dolibarr-style PDF model for completion certificates.
@@ -18,6 +19,7 @@ class pdf_standard_certificate extends ModelePDFCertificate
 	public $phpmin = array(8, 1);
 	public $version = 'dolibarr';
 	public $emetteur;
+	public $sourceOrder;
 
 	public $page_largeur;
 	public $page_hauteur;
@@ -58,6 +60,11 @@ class pdf_standard_certificate extends ModelePDFCertificate
 		if ($object->fetch_thirdparty() <= 0) {
 			$this->error = $langs->trans('ErrorFailedToLoadThirdParty');
 			return -1;
+		}
+
+		$this->sourceOrder = new Commande($this->db);
+		if ($this->sourceOrder->fetch((int) $object->fk_commande) <= 0) {
+			$this->sourceOrder = null;
 		}
 
 		$dirOutput = getMultidirOutput($object, $object->module);
@@ -142,15 +149,35 @@ class pdf_standard_certificate extends ModelePDFCertificate
 			$pdf->SetY($y + $rowHeight);
 		}
 
+		$pdf->Ln(5);
+		$pdf->SetFont(pdf_getPDFFont($outputlangs), 'B', $fontSize);
+		$pdf->MultiCell(0, 5, $outputlangs->transnoentities('CompletionAcceptance').':', 0, 'L');
+		$pdf->SetFont(pdf_getPDFFont($outputlangs), '', $fontSize);
+		$pdf->MultiCell(
+			0,
+			5,
+			$outputlangs->transnoentities('CompletionCertificateAcceptanceStatement'),
+			0,
+			'L'
+		);
+		$pdf->Ln(2);
+		$pdf->MultiCell(
+			0,
+			5,
+			$outputlangs->transnoentities('CompletionCertificateInvoiceStatement'),
+			0,
+			'L'
+		);
+
 		if (!empty($object->note_public)) {
-			$pdf->Ln(5);
+			$pdf->Ln(4);
 			$pdf->SetFont(pdf_getPDFFont($outputlangs), 'B', $fontSize);
-			$pdf->MultiCell(0, 5, $outputlangs->transnoentities('NotePublic').':', 0, 'L');
+			$pdf->MultiCell(0, 5, $outputlangs->transnoentities('CompletionCertificateReservations').':', 0, 'L');
 			$pdf->SetFont(pdf_getPDFFont($outputlangs), '', $fontSize);
 			$pdf->MultiCell(0, 5, trim(strip_tags($object->note_public)), 0, 'L');
 		}
 
-		if ($pdf->GetY() > ($this->page_hauteur - $heightForFooter - 38)) {
+		if ($pdf->GetY() > ($this->page_hauteur - $heightForFooter - 48)) {
 			$this->_pagefoot($pdf, $object, $outputlangs, 1);
 			$pdf->AddPage();
 			if (!empty($tplidx)) {
@@ -159,18 +186,29 @@ class pdf_standard_certificate extends ModelePDFCertificate
 			$pdf->SetY($this->marge_haute + 15);
 		}
 
-		$pdf->Ln(16);
+		$pdf->Ln(12);
+		$pdf->SetFont(pdf_getPDFFont($outputlangs), '', $fontSize);
+		$pdf->MultiCell(0, 5, $outputlangs->transnoentities('CompletionCertificatePlaceDate').': ........................................................', 0, 'L');
+
+		$pdf->Ln(8);
 		$signatureWidth = 70;
 		$gap = 30;
 		$x = ($this->page_largeur - ($signatureWidth * 2 + $gap)) / 2;
 		$y = $pdf->GetY();
 
-		$pdf->Line($x, $y + 14, $x + $signatureWidth, $y + 14);
-		$pdf->Line($x + $signatureWidth + $gap, $y + 14, $x + ($signatureWidth * 2) + $gap, $y + 14);
-		$pdf->SetXY($x, $y + 15);
-		$pdf->Cell($signatureWidth, 5, $outputlangs->transnoentities('Contractor'), 0, 0, 'C');
-		$pdf->SetXY($x + $signatureWidth + $gap, $y + 15);
-		$pdf->Cell($signatureWidth, 5, $outputlangs->transnoentities('Customer'), 0, 1, 'C');
+		$pdf->SetFont(pdf_getPDFFont($outputlangs), 'B', $fontSize);
+		$pdf->SetXY($x, $y);
+		$pdf->Cell($signatureWidth, 5, $outputlangs->transnoentities('OnBehalfOfContractor'), 0, 0, 'C');
+		$pdf->SetXY($x + $signatureWidth + $gap, $y);
+		$pdf->Cell($signatureWidth, 5, $outputlangs->transnoentities('OnBehalfOfCustomer'), 0, 1, 'C');
+
+		$pdf->Line($x, $y + 18, $x + $signatureWidth, $y + 18);
+		$pdf->Line($x + $signatureWidth + $gap, $y + 18, $x + ($signatureWidth * 2) + $gap, $y + 18);
+		$pdf->SetFont(pdf_getPDFFont($outputlangs), '', max(7, $fontSize - 1));
+		$pdf->SetXY($x, $y + 19);
+		$pdf->Cell($signatureWidth, 4, $outputlangs->transnoentities('NamePositionSignature'), 0, 0, 'C');
+		$pdf->SetXY($x + $signatureWidth + $gap, $y + 19);
+		$pdf->Cell($signatureWidth, 4, $outputlangs->transnoentities('NamePositionSignature'), 0, 1, 'C');
 
 		$this->_pagefoot($pdf, $object, $outputlangs, 0);
 		if (method_exists($pdf, 'AliasNbPages')) {
@@ -234,24 +272,44 @@ class pdf_standard_certificate extends ModelePDFCertificate
 		$pdf->SetFont($font, '', $defaultFontSize - 1);
 		$pdf->SetXY($titleX, $posy + 14);
 		$pdf->MultiCell($titleWidth, 4, $outputlangs->transnoentities('Order').' : '.$object->order_ref, 0, 'R');
-		$pdf->SetXY($titleX, $posy + 19);
+
+		$metaY = $posy + 19;
+		if (is_object($this->sourceOrder) && !empty($this->sourceOrder->ref_client)) {
+			$pdf->SetXY($titleX, $metaY);
+			$pdf->MultiCell($titleWidth, 4, $outputlangs->transnoentities('CustomerRef').' : '.$this->sourceOrder->ref_client, 0, 'R');
+			$metaY += 5;
+		}
+		if (is_object($this->sourceOrder) && !empty($this->sourceOrder->date)) {
+			$pdf->SetXY($titleX, $metaY);
+			$pdf->MultiCell($titleWidth, 4, $outputlangs->transnoentities('OrderDate').' : '.dol_print_date($this->sourceOrder->date, 'day', false, $outputlangs, true), 0, 'R');
+			$metaY += 5;
+		}
+		$pdf->SetXY($titleX, $metaY);
 		$pdf->MultiCell($titleWidth, 4, $outputlangs->transnoentities('CompletionDate').' : '.dol_print_date($this->db->jdate($object->date_completion), 'day', false, $outputlangs, true), 0, 'R');
 
-		$boxY = max(42, $posy + 30);
+		$boxY = max(47, $metaY + 10);
 		$boxWidth = 82;
-		$boxHeight = 34;
+		$boxHeight = 40;
 		$senderX = $this->marge_gauche;
 		$recipientX = $this->page_largeur - $this->marge_droite - $boxWidth;
 
 		$senderAddress = pdf_build_address($outputlangs, $this->emetteur, $object->thirdparty, '', 0, 'source', $object);
 		$recipientAddress = pdf_build_address($outputlangs, $this->emetteur, $object->thirdparty, '', 0, 'target', $object);
 
+		// A completion certificate should identify both parties independently of generic PDF address settings.
+		if (!empty($this->emetteur->tva_intra) && strpos($senderAddress, (string) $this->emetteur->tva_intra) === false) {
+			$senderAddress .= ($senderAddress !== '' ? "\n" : '').$outputlangs->transnoentities('VATIntraShort').': '.$this->emetteur->tva_intra;
+		}
+		if (!empty($object->thirdparty->tva_intra) && strpos($recipientAddress, (string) $object->thirdparty->tva_intra) === false) {
+			$recipientAddress .= ($recipientAddress !== '' ? "\n" : '').$outputlangs->transnoentities('VATIntraShort').': '.$object->thirdparty->tva_intra;
+		}
+
 		$pdf->SetTextColor(0, 0, 0);
 		$pdf->SetFont($font, '', $defaultFontSize - 2);
 		$pdf->SetXY($senderX + 2, $boxY - 5);
-		$pdf->Cell($boxWidth - 4, 4, $outputlangs->transnoentities('ContractorSignature'), 0, 0, 'L');
+		$pdf->Cell($boxWidth - 4, 4, $outputlangs->transnoentities('Contractor'), 0, 0, 'L');
 		$pdf->SetXY($recipientX + 2, $boxY - 5);
-		$pdf->Cell($boxWidth - 4, 4, $outputlangs->transnoentities('CustomerSignature'), 0, 0, 'L');
+		$pdf->Cell($boxWidth - 4, 4, $outputlangs->transnoentities('Customer'), 0, 0, 'L');
 
 		$pdf->SetFillColor(245, 245, 245);
 		$pdf->Rect($senderX, $boxY, $boxWidth, $boxHeight, 'DF');
@@ -278,7 +336,7 @@ class pdf_standard_certificate extends ModelePDFCertificate
 		$pdf->MultiCell(
 			$this->page_largeur - $this->marge_gauche - $this->marge_droite,
 			5,
-			$outputlangs->transnoentities('CompletionCertificateStatement'),
+			$outputlangs->transnoentities('CompletionCertificateIntroStatement'),
 			0,
 			'L'
 		);
