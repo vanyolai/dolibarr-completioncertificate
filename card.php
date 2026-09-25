@@ -255,7 +255,18 @@ if ($orderId > 0 && $id <= 0) {
 	}
 	$order->fetch_thirdparty();
 
+	$lockedMode = $certificate->getActiveCompletionModeForOrder($orderId);
+	$requestedMode = GETPOST('completion_mode', 'int');
+	$selectedMode = $lockedMode !== null
+		? $lockedMode
+		: ($requestedMode === '' ? Certificate::MODE_LINES : (int) $requestedMode);
+	if (!in_array($selectedMode, array(Certificate::MODE_LINES, Certificate::MODE_PROGRESS), true)) {
+		$selectedMode = Certificate::MODE_LINES;
+	}
+
 	$usedQuantities = $certificate->getUsedQuantitiesForOrder($orderId);
+	$usedProgress = $certificate->getUsedProgressForOrder($orderId);
+	$remainingProgress = max(0.0, 100.0 - $usedProgress);
 
 	print '<form method="post" action="'.dol_escape_htmltag($_SERVER['PHP_SELF']).'">';
 	print '<input type="hidden" name="token" value="'.newToken().'">';
@@ -266,8 +277,23 @@ if ($orderId > 0 && $id <= 0) {
 	print '<tr><td class="titlefield">'.$langs->trans('Order').'</td><td>'.$order->getNomUrl(1).'</td></tr>';
 	print '<tr><td>'.$langs->trans('ThirdParty').'</td><td>'.$order->thirdparty->getNomUrl(1).'</td></tr>';
 	print '<tr><td>'.$langs->trans('CompletionDate').'</td><td><input type="date" name="date_completion" value="'.dol_print_date(dol_now(), '%Y-%m-%d').'"></td></tr>';
+	print '<tr><td>'.$langs->trans('CompletionMode').'</td><td>';
+	if ($lockedMode !== null) {
+		$tmpModeObject = new Certificate($db);
+		$tmpModeObject->completion_mode = $lockedMode;
+		print dol_escape_htmltag($tmpModeObject->getCompletionModeLabel($langs));
+		print '<input type="hidden" name="completion_mode" value="'.((int) $lockedMode).'">';
+		print ' <span class="opacitymedium">('.$langs->trans('CompletionModeLockedHint').')</span>';
+	} else {
+		print '<select name="completion_mode" id="completion_mode">';
+		print '<option value="'.Certificate::MODE_LINES.'"'.($selectedMode === Certificate::MODE_LINES ? ' selected' : '').'>'.$langs->trans('CompletionModeLines').'</option>';
+		print '<option value="'.Certificate::MODE_PROGRESS.'"'.($selectedMode === Certificate::MODE_PROGRESS ? ' selected' : '').'>'.$langs->trans('CompletionModeProgress').'</option>';
+		print '</select>';
+	}
+	print '</td></tr>';
 	print '</table><br>';
 
+	print '<div id="completion_lines_section"'.($selectedMode === Certificate::MODE_LINES ? '' : ' style="display:none"').'>';
 	print '<div class="div-table-responsive-no-min">';
 	print '<table class="noborder centpercent">';
 	print '<tr class="liste_titre">';
@@ -293,15 +319,43 @@ if ($orderId > 0 && $id <= 0) {
 		print '<td class="right"><input class="width75 right" type="number" step="any" min="0" max="'.price2num($remainingQty).'" name="qty_'.$lineId.'" value="'.price2num($remainingQty).'"'.($remainingQty <= 0 ? ' disabled' : '').'></td>';
 		print '</tr>';
 	}
-	print '</table></div><br>';
+	print '</table></div>';
+	print '</div>';
 
-	print '<label for="note_public">'.$langs->trans('NotePublic').'</label><br>';
+	print '<div id="completion_progress_section"'.($selectedMode === Certificate::MODE_PROGRESS ? '' : ' style="display:none"').'>';
+	print '<table class="border centpercent">';
+	print '<tr><td class="titlefield">'.$langs->trans('OrderNetAmount').'</td><td class="right">'.price($order->total_ht).'</td></tr>';
+	print '<tr><td>'.$langs->trans('PreviouslyCertifiedProgress').'</td><td class="right">'.price($usedProgress).' %</td></tr>';
+	print '<tr><td>'.$langs->trans('RemainingProgress').'</td><td class="right">'.price($remainingProgress).' %</td></tr>';
+	print '<tr><td>'.$langs->trans('CurrentProgress').'</td><td class="right">';
+	print '<input class="width75 right" type="number" step="0.01" min="0.01" max="'.price2num($remainingProgress).'" name="progress_percent" value="'.dol_escape_htmltag(GETPOST('progress_percent', 'alphanohtml')).'"> %';
+	print '</td></tr>';
+	print '</table>';
+	print '<div class="opacitymedium">'.$langs->trans('ProgressAmountHint').'</div>';
+	print '</div>';
+
+	print '<br><label for="note_public">'.$langs->trans('NotePublic').'</label><br>';
 	print '<textarea id="note_public" class="quatrevingtpercent" rows="4" name="note_public">'.dol_escape_htmltag(GETPOST('note_public', 'restricthtml')).'</textarea>';
 
 	print '<div class="center">';
 	print '<input class="button button-save" type="submit" value="'.$langs->trans('Create').'">';
 	print ' &nbsp; <a class="button button-cancel" href="'.DOL_URL_ROOT.'/commande/card.php?id='.((int) $order->id).'">'.$langs->trans('Cancel').'</a>';
 	print '</div></form>';
+
+	if ($lockedMode === null) {
+		print '<script nonce="'.getNonce().'">
+		jQuery(function($) {
+			function toggleCompletionMode() {
+				var mode = parseInt($("#completion_mode").val(), 10);
+				$("#completion_lines_section").toggle(mode === '.Certificate::MODE_LINES.');
+				$("#completion_progress_section").toggle(mode === '.Certificate::MODE_PROGRESS.');
+			}
+			$("#completion_mode").on("change", toggleCompletionMode);
+			toggleCompletionMode();
+		});
+		</script>';
+	}
+}
 
 // Edit draft.
 } elseif ($id > 0 && $action === 'edit') {
