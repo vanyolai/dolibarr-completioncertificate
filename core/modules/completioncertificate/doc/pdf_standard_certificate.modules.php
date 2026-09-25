@@ -151,30 +151,20 @@ class pdf_standard_certificate extends ModelePDFCertificate
 			$pdf->SetY($y + $rowHeight);
 		}
 
-		// Render the acceptance/signature section as one logical block.
-		// This follows the core PDF pattern: try inside a TCPDF transaction,
-		// and if it would cross the reserved footer area, roll back and move
-		// the whole block to the next page.
-		$pageBeforeClosing = $pdf->getPage();
-		$pdf->startTransaction();
-		$this->_writeClosingBlock($pdf, $object, $outputlangs, $fontSize);
-		$pageAfterClosing = $pdf->getPage();
+		// Let the explanatory/acceptance text use the remaining page efficiently.
+		// Only the place/date + signature area is kept together as one visual block.
+		$this->_writeClosingTextBlock($pdf, $object, $outputlangs, $fontSize, $heightForFooter, $tplidx);
 
-		if ($pageAfterClosing > $pageBeforeClosing) {
-			$pdf->rollbackTransaction(true);
-			$pdf->setPage($pageBeforeClosing);
-			$this->_pagefoot($pdf, $object, $outputlangs, 1);
-
-			$pdf->AddPage();
-			$pdf->setPageOrientation('', true, $heightForFooter);
-			if (!empty($tplidx)) {
-				$pdf->useTemplate($tplidx);
-			}
-			$pdf->SetY($this->marge_haute + 8);
-			$this->_writeClosingBlock($pdf, $object, $outputlangs, $fontSize);
-		} else {
-			$pdf->commitTransaction();
-		}
+		$signatureBlockHeight = 46;
+		$this->_ensureSpaceForBlock(
+			$pdf,
+			$object,
+			$outputlangs,
+			$signatureBlockHeight,
+			$heightForFooter,
+			$tplidx
+		);
+		$this->_writeSignatureBlock($pdf, $object, $outputlangs, $fontSize);
 
 		$this->_pagefoot($pdf, $object, $outputlangs, 0);
 		if (method_exists($pdf, 'AliasNbPages')) {
@@ -329,28 +319,75 @@ class pdf_standard_certificate extends ModelePDFCertificate
 	}
 
 	/**
-	 * Write acceptance, reservations, place/date and signature fields.
-	 * Caller may wrap this in a TCPDF transaction to keep the block together.
+	 * Ensure a visual block fits above the footer. If not, finish the current
+	 * page and continue on a new page using the same Dolibarr page settings.
 	 */
-	protected function _writeClosingBlock(&$pdf, $object, $outputlangs, $fontSize)
+	protected function _ensureSpaceForBlock(&$pdf, $object, $outputlangs, $requiredHeight, $heightForFooter, $tplidx = 0)
 	{
-		$pdf->Ln(5);
-		$pdf->SetFont(pdf_getPDFFont($outputlangs), 'B', $fontSize);
-		$pdf->MultiCell(0, 5, $outputlangs->transnoentities('CompletionAcceptance').':', 0, 'L');
-		$pdf->SetFont(pdf_getPDFFont($outputlangs), '', $fontSize);
-		$pdf->MultiCell(0, 5, $outputlangs->transnoentities('CompletionCertificateAcceptanceStatement'), 0, 'L');
-		$pdf->Ln(2);
-		$pdf->MultiCell(0, 5, $outputlangs->transnoentities('CompletionCertificateInvoiceStatement'), 0, 'L');
-
-		if (!empty($object->note_public)) {
-			$pdf->Ln(4);
-			$pdf->SetFont(pdf_getPDFFont($outputlangs), 'B', $fontSize);
-			$pdf->MultiCell(0, 5, $outputlangs->transnoentities('CompletionCertificateReservations').':', 0, 'L');
-			$pdf->SetFont(pdf_getPDFFont($outputlangs), '', $fontSize);
-			$pdf->MultiCell(0, 5, trim(strip_tags($object->note_public)), 0, 'L');
+		if ($pdf->GetY() + $requiredHeight <= ($this->page_hauteur - $heightForFooter - 2)) {
+			return;
 		}
 
-		$pdf->Ln(10);
+		$this->_pagefoot($pdf, $object, $outputlangs, 1);
+		$pdf->AddPage();
+		$pdf->setPageOrientation('', true, $heightForFooter);
+		if (!empty($tplidx)) {
+			$pdf->useTemplate($tplidx);
+		}
+		$pdf->SetY($this->marge_haute + 8);
+	}
+
+	/**
+	 * Write the explanatory/acceptance text. Each paragraph is kept intact when
+	 * practical, but the whole closing section is no longer forced onto one page.
+	 */
+	protected function _writeClosingTextBlock(&$pdf, $object, $outputlangs, $fontSize, $heightForFooter, $tplidx = 0)
+	{
+		$usableWidth = $this->page_largeur - $this->marge_gauche - $this->marge_droite;
+
+		$pdf->SetFont(pdf_getPDFFont($outputlangs), 'B', $fontSize);
+		$heading = $outputlangs->transnoentities('CompletionAcceptance').':';
+		$headingHeight = max(5.0, (float) $pdf->getStringHeight($usableWidth, $heading));
+		$this->_ensureSpaceForBlock($pdf, $object, $outputlangs, 5 + $headingHeight, $heightForFooter, $tplidx);
+		$pdf->Ln(5);
+		$pdf->MultiCell(0, 5, $heading, 0, 'L');
+
+		$pdf->SetFont(pdf_getPDFFont($outputlangs), '', $fontSize);
+		$paragraph = $outputlangs->transnoentities('CompletionCertificateAcceptanceStatement');
+		$paragraphHeight = max(5.0, (float) $pdf->getStringHeight($usableWidth, $paragraph));
+		$this->_ensureSpaceForBlock($pdf, $object, $outputlangs, $paragraphHeight + 2, $heightForFooter, $tplidx);
+		$pdf->MultiCell(0, 5, $paragraph, 0, 'L');
+
+		$pdf->Ln(2);
+		$paragraph = $outputlangs->transnoentities('CompletionCertificateInvoiceStatement');
+		$paragraphHeight = max(5.0, (float) $pdf->getStringHeight($usableWidth, $paragraph));
+		$this->_ensureSpaceForBlock($pdf, $object, $outputlangs, $paragraphHeight + 2, $heightForFooter, $tplidx);
+		$pdf->MultiCell(0, 5, $paragraph, 0, 'L');
+
+		if (!empty($object->note_public)) {
+			$pdf->SetFont(pdf_getPDFFont($outputlangs), 'B', $fontSize);
+			$heading = $outputlangs->transnoentities('CompletionCertificateReservations').':';
+			$headingHeight = max(5.0, (float) $pdf->getStringHeight($usableWidth, $heading));
+			$this->_ensureSpaceForBlock($pdf, $object, $outputlangs, 4 + $headingHeight, $heightForFooter, $tplidx);
+			$pdf->Ln(4);
+			$pdf->MultiCell(0, 5, $heading, 0, 'L');
+
+			$pdf->SetFont(pdf_getPDFFont($outputlangs), '', $fontSize);
+			$note = trim(strip_tags($object->note_public));
+			$noteHeight = max(5.0, (float) $pdf->getStringHeight($usableWidth, $note));
+			if ($noteHeight <= ($this->page_hauteur - $heightForFooter - $this->marge_haute - 20)) {
+				$this->_ensureSpaceForBlock($pdf, $object, $outputlangs, $noteHeight, $heightForFooter, $tplidx);
+			}
+			$pdf->MultiCell(0, 5, $note, 0, 'L');
+		}
+	}
+
+	/**
+	 * Keep place/date and both signature fields together.
+	 */
+	protected function _writeSignatureBlock(&$pdf, $object, $outputlangs, $fontSize)
+	{
+		$pdf->Ln(8);
 		$pdf->SetFont(pdf_getPDFFont($outputlangs), '', $fontSize);
 		$pdf->MultiCell(0, 5, $outputlangs->transnoentities('CompletionCertificatePlaceDate').': ........................................................', 0, 'L');
 
