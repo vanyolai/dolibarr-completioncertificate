@@ -60,3 +60,5 @@ CompletionCertificateProgressAcceptanceStatement=A Megrendelő igazolja, hogy a 
 ProgressIncrementHint=A százalék az adott TIG-ben újonnan igazolt rész; az összesített készültséget a rendszer számolja.
 IssueText=Keltezés
 CompletionCertificateValidated=A teljesítésigazolás érvényesítve.
+CompletionCertificateSaved=A teljesítésigazolás módosításai elmentve.
+CompletionCertificateDeleted=A teljesítésigazolás törölve.
