@@ -88,7 +88,16 @@ if ($action === 'save') {
 	$completionMode = GETPOSTINT('completion_mode');
 	$progressPercent = (float) price2num(GETPOST('progress_percent', 'alphanohtml'));
 
-	$newId = $certificate->createFromOrder($order, $user, $dateCompletion, $notePublic, $requestedQty, $completionMode, $progressPercent);
+	$newId = $certificate->createFromOrder(
+		$order,
+		$user,
+		$dateCompletion,
+		$notePublic,
+		$requestedQty,
+		$completionMode,
+		$progressPercent,
+		GETPOST('issue_text', 'alphanohtml')
+	);
 	if ($newId > 0) {
 		if (!empty($certificate->warnings)) {
 			setEventMessages('', $certificate->warnings, 'warnings');
@@ -123,7 +132,8 @@ if ($action === 'update' && $id > 0) {
 		GETPOST('date_completion', 'alpha'),
 		GETPOST('note_public', 'restricthtml'),
 		$requestedQty,
-		(float) price2num(GETPOST('progress_percent', 'alphanohtml'))
+		(float) price2num(GETPOST('progress_percent', 'alphanohtml')),
+		GETPOST('issue_text', 'alphanohtml')
 	);
 
 	if ($result > 0) {
@@ -266,6 +276,12 @@ if ($orderId > 0 && $id <= 0) {
 
 	$usedQuantities = $certificate->getUsedQuantitiesForOrder($orderId);
 	$usedProgress = $certificate->getUsedProgressForOrder($orderId);
+	$orderCurrency = Certificate::getOrderCurrencyCode($order);
+	$orderNetAmount = Certificate::getOrderNetAmount($order);
+	$defaultIssueText = GETPOST('issue_text', 'alphanohtml');
+	if ($defaultIssueText === '') {
+		$defaultIssueText = Certificate::getDefaultIssueText($langs);
+	}
 	$remainingProgress = max(0.0, 100.0 - $usedProgress);
 
 	print '<form method="post" action="'.dol_escape_htmltag($_SERVER['PHP_SELF']).'">';
@@ -277,6 +293,7 @@ if ($orderId > 0 && $id <= 0) {
 	print '<tr><td class="titlefield">'.$langs->trans('Order').'</td><td>'.$order->getNomUrl(1).'</td></tr>';
 	print '<tr><td>'.$langs->trans('ThirdParty').'</td><td>'.$order->thirdparty->getNomUrl(1).'</td></tr>';
 	print '<tr><td>'.$langs->trans('CompletionDate').'</td><td><input type="date" name="date_completion" value="'.dol_print_date(dol_now(), '%Y-%m-%d').'"></td></tr>';
+	print '<tr><td>'.$langs->trans('IssueText').'</td><td><input class="minwidth300" type="text" name="issue_text" maxlength="255" value="'.dol_escape_htmltag($defaultIssueText).'"></td></tr>';
 	print '<tr><td>'.$langs->trans('CompletionMode').'</td><td>';
 	if ($lockedMode !== null) {
 		$tmpModeObject = new Certificate($db);
@@ -324,7 +341,7 @@ if ($orderId > 0 && $id <= 0) {
 
 	print '<div id="completion_progress_section"'.($selectedMode === Certificate::MODE_PROGRESS ? '' : ' style="display:none"').'>';
 	print '<table class="border centpercent">';
-	print '<tr><td class="titlefield">'.$langs->trans('OrderNetAmount').'</td><td class="right">'.price($order->total_ht).'</td></tr>';
+	print '<tr><td class="titlefield">'.$langs->trans('OrderNetAmount').'</td><td class="right">'.price($orderNetAmount).' '.dol_escape_htmltag($orderCurrency).'</td></tr>';
 	print '<tr><td>'.$langs->trans('PreviouslyCertifiedProgress').'</td><td class="right">'.price($usedProgress).' %</td></tr>';
 	print '<tr><td>'.$langs->trans('RemainingProgress').'</td><td class="right">'.price($remainingProgress).' %</td></tr>';
 	print '<tr><td>'.$langs->trans('CurrentProgress').'</td><td class="right">';
@@ -378,6 +395,7 @@ if ($orderId > 0 && $id <= 0) {
 	print '<tr><td>'.$langs->trans('Order').'</td><td>'.$order->getNomUrl(1).'</td></tr>';
 	print '<tr><td>'.$langs->trans('ThirdParty').'</td><td>'.$order->thirdparty->getNomUrl(1).'</td></tr>';
 	print '<tr><td>'.$langs->trans('CompletionDate').'</td><td><input type="date" name="date_completion" value="'.dol_escape_htmltag($certificate->date_completion).'"></td></tr>';
+	print '<tr><td>'.$langs->trans('IssueText').'</td><td><input class="minwidth300" type="text" name="issue_text" maxlength="255" value="'.dol_escape_htmltag($certificate->getIssueText($langs)).'"></td></tr>';
 	print '<tr><td>'.$langs->trans('CompletionMode').'</td><td>'.dol_escape_htmltag($certificate->getCompletionModeLabel($langs)).'</td></tr>';
 	print '</table><br>';
 
@@ -386,7 +404,7 @@ if ($orderId > 0 && $id <= 0) {
 		$availableProgress = max(0.0, 100.0 - $usedProgress);
 
 		print '<table class="border centpercent">';
-		print '<tr><td class="titlefield">'.$langs->trans('OrderNetAmount').'</td><td class="right">'.price($order->total_ht).'</td></tr>';
+		print '<tr><td class="titlefield">'.$langs->trans('OrderNetAmount').'</td><td class="right">'.price(Certificate::getOrderNetAmount($order)).' '.dol_escape_htmltag(Certificate::getOrderCurrencyCode($order)).'</td></tr>';
 		print '<tr><td>'.$langs->trans('PreviouslyCertifiedProgress').'</td><td class="right">'.price($usedProgress).' %</td></tr>';
 		print '<tr><td>'.$langs->trans('AvailableProgress').'</td><td class="right">'.price($availableProgress).' %</td></tr>';
 		print '<tr><td>'.$langs->trans('CurrentProgress').'</td><td class="right">';
@@ -473,11 +491,12 @@ if ($orderId > 0 && $id <= 0) {
 	print '<tr><td>'.$langs->trans('ThirdParty').'</td><td>'.$certificate->thirdparty->getNomUrl(1).'</td></tr>';
 	print '<tr><td>'.$langs->trans('Order').'</td><td><a href="'.DOL_URL_ROOT.'/commande/card.php?id='.((int) $certificate->fk_commande).'">'.dol_escape_htmltag($certificate->order_ref).'</a></td></tr>';
 	print '<tr><td>'.$langs->trans('CompletionDate').'</td><td>'.dol_print_date($db->jdate($certificate->date_completion), 'day').'</td></tr>';
+	print '<tr><td>'.$langs->trans('IssueText').'</td><td>'.dol_escape_htmltag($certificate->getIssueText($langs)).'</td></tr>';
 	print '<tr><td>'.$langs->trans('CompletionMode').'</td><td>'.dol_escape_htmltag($certificate->getCompletionModeLabel($langs)).'</td></tr>';
 	if ($certificate->completion_mode === Certificate::MODE_PROGRESS) {
 		print '<tr><td>'.$langs->trans('CurrentProgress').'</td><td>'.price($certificate->progress_percent).' %</td></tr>';
 	}
-	print '<tr><td>'.$langs->trans('CertifiedNetAmount').'</td><td>'.price($certificate->total_ht).'</td></tr>';
+	print '<tr><td>'.$langs->trans('CertifiedNetAmount').'</td><td>'.price($certificate->total_ht).' '.dol_escape_htmltag($certificate->currency_code).'</td></tr>';
 	print '<tr><td>'.$langs->trans('Status').'</td><td>'.$certificate->getLibStatut(5).'</td></tr>';
 	print '</table><br>';
 
@@ -487,7 +506,7 @@ if ($orderId > 0 && $id <= 0) {
 		$remainingProgress = max(0.0, 100.0 - $cumulativeProgress);
 
 		print '<table class="border centpercent">';
-		print '<tr><td class="titlefield">'.$langs->trans('OrderNetAmount').'</td><td class="right">'.price($certificate->order_total_ht).'</td></tr>';
+		print '<tr><td class="titlefield">'.$langs->trans('OrderNetAmount').'</td><td class="right">'.price($certificate->order_total_ht).' '.dol_escape_htmltag($certificate->currency_code).'</td></tr>';
 		print '<tr><td>'.$langs->trans('PreviouslyCertifiedProgress').'</td><td class="right">'.price($previousProgress).' %</td></tr>';
 		print '<tr><td>'.$langs->trans('CurrentProgress').'</td><td class="right">'.price($certificate->progress_percent).' %</td></tr>';
 		print '<tr><td>'.$langs->trans('CumulativeProgress').'</td><td class="right">'.price($cumulativeProgress).' %</td></tr>';
@@ -507,12 +526,12 @@ if ($orderId > 0 && $id <= 0) {
 			print '<td>'.dol_htmlentitiesbr($line->description).'</td>';
 			print '<td class="right">'.price($line->qty_ordered).'</td>';
 			print '<td class="right">'.price($line->qty_certified).'</td>';
-			print '<td class="right">'.price($line->total_ht).'</td>';
+			print '<td class="right">'.price($line->total_ht).' '.dol_escape_htmltag($certificate->currency_code).'</td>';
 			print '</tr>';
 		}
 		print '<tr class="liste_total">';
 		print '<td>'.$langs->trans('Total').'</td><td></td><td></td>';
-		print '<td class="right">'.price($certificate->total_ht).'</td>';
+		print '<td class="right">'.price($certificate->total_ht).' '.dol_escape_htmltag($certificate->currency_code).'</td>';
 		print '</tr>';
 		print '</table></div>';
 	}
