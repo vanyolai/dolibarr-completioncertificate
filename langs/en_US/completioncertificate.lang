@@ -60,3 +60,5 @@ CompletionCertificateProgressAcceptanceStatement=The Customer confirms that the 
 ProgressIncrementHint=Enter the additional progress certified by this certificate; cumulative progress is calculated automatically.
 IssueText=Place and date of issue
 CompletionCertificateValidated=The completion certificate has been validated.
+CompletionCertificateSaved=The completion certificate changes have been saved.
+CompletionCertificateDeleted=The completion certificate has been deleted.
