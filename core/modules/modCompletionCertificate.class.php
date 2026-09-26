@@ -24,14 +24,14 @@ class modCompletionCertificate extends DolibarrModules
 		$this->description = 'ModuleCompletionCertificateDesc';
 		$this->editor_name = 'Krisztian Vanyolai';
 		$this->editor_url = 'https://github.com/vanyolai/dolibarr-completioncertificate';
-		$this->version = '0.5.3';
+		$this->version = '0.5.4';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'check-circle';
 
 		$this->module_parts = array(
 			'triggers' => 0,
 			'login' => 0,
-			'substitutions' => 0,
+			'substitutions' => 1,
 			'menus' => 0,
 			'tpl' => 0,
 			'barcode' => 0,
