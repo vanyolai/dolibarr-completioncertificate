@@ -55,3 +55,13 @@ jobs:
             echo "Direct footer calls are forbidden; use _writePageFooter() so the reserved bottom margin is cleared first."
             exit 1
           fi
+
+      - name: Guard top-layer status watermark
+        run: |
+          grep -F "_applyStatusWatermarkOverlay" core/modules/completioncertificate/doc/pdf_standard_certificate.modules.php
+          grep -F "pdf_watermark" core/modules/completioncertificate/doc/pdf_standard_certificate.modules.php
+          count=$(grep -c "pdf_watermark" core/modules/completioncertificate/doc/pdf_standard_certificate.modules.php)
+          if [ "$count" -ne 1 ]; then
+            echo "Status watermark must only be rendered by the final overlay helper."
+            exit 1
+          fi
