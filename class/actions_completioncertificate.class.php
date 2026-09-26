@@ -49,4 +49,28 @@ class ActionsCompletionCertificate extends CommonHookActions
 
 		return 0;
 	}
+	/**
+	 * Add the Completion Certificate type to Dolibarr's native email-template list.
+	 *
+	 * @param array<string,mixed> $parameters Hook parameters
+	 * @param mixed $object Current object
+	 * @param string $action Current action
+	 * @param HookManager $hookmanager Hook manager
+	 * @return int
+	 */
+	public function emailElementlist($parameters, &$object, &$action, $hookmanager)
+	{
+		global $langs;
+
+		$langs->load('completioncertificate@completioncertificate');
+
+		$this->results = array(
+			'completioncertificate' => img_picto('', 'check-circle', 'class="pictofixedwidth"')
+				.dol_escape_htmltag($langs->trans('MailToSendCompletionCertificate')),
+		);
+
+		return 0;
+	}
+
+
 }
