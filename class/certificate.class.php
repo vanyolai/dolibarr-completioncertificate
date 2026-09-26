@@ -40,6 +40,8 @@ class Certificate extends CommonObject
 	public $progress_percent = 0.0;
 	public $order_total_ht = 0.0;
 	public $total_ht = 0.0;
+	public $currency_code = '';
+	public $issue_text = '';
 	public $note_public = '';
 	public $status = self::STATUS_DRAFT;
 	public $fk_user_author = 0;
@@ -104,6 +106,11 @@ class Certificate extends CommonObject
 		$this->progress_percent = (float) ($obj->progress_percent ?? 0);
 		$this->order_total_ht = (float) ($obj->order_total_ht ?? 0);
 		$this->total_ht = (float) ($obj->total_ht ?? 0);
+		$this->currency_code = (string) ($obj->currency_code ?? $conf->currency);
+		if ($this->currency_code === '') {
+			$this->currency_code = (string) $conf->currency;
+		}
+		$this->issue_text = (string) ($obj->issue_text ?? '');
 		$this->note_public = (string) ($obj->note_public ?? '');
 		$this->status = (int) $obj->status;
 		$this->fk_user_author = (int) ($obj->fk_user_author ?? 0);
@@ -291,14 +298,78 @@ class Certificate extends CommonObject
 	/**
 	 * Return the net amount represented by a certified quantity of an order line.
 	 */
-	public static function calculateLineNetAmount($line, $certifiedQty)
+	public static function useOrderMulticurrency($order)
+	{
+		return isModEnabled('multicurrency')
+			&& !empty($order->multicurrency_code)
+			&& isset($order->multicurrency_tx)
+			&& (float) $order->multicurrency_tx != 1.0;
+	}
+
+	public static function getOrderCurrencyCode($order)
+	{
+		global $conf;
+
+		return self::useOrderMulticurrency($order)
+			? (string) $order->multicurrency_code
+			: (string) $conf->currency;
+	}
+
+	public static function getOrderNetAmount($order)
+	{
+		return self::useOrderMulticurrency($order)
+			? (float) $order->multicurrency_total_ht
+			: (float) $order->total_ht;
+	}
+
+	public static function getDefaultIssueText($outputlangs = null, $timestamp = null)
+	{
+		global $langs, $mysoc;
+
+		if (!is_object($outputlangs)) {
+			$outputlangs = $langs;
+		}
+		if (empty($timestamp)) {
+			$timestamp = dol_now();
+		}
+
+		$parts = array();
+		if (!empty($mysoc->town)) {
+			$parts[] = trim((string) $mysoc->town);
+		}
+		$parts[] = dol_print_date($timestamp, 'day', false, $outputlangs, true);
+
+		return implode(', ', array_filter($parts, static function ($value) {
+			return $value !== '';
+		}));
+	}
+
+	public function getIssueText($outputlangs = null)
+	{
+		if ($this->issue_text !== '') {
+			return $this->issue_text;
+		}
+
+		$timestamp = !empty($this->date_creation) ? $this->date_creation : 0;
+		if (empty($timestamp) && !empty($this->date_completion)) {
+			$timestamp = $this->db->jdate($this->date_completion);
+		}
+
+		return self::getDefaultIssueText($outputlangs, $timestamp ?: dol_now());
+	}
+
+	public static function calculateLineNetAmount($line, $certifiedQty, $useMulticurrency = false)
 	{
 		$orderedQty = (float) ($line->qty ?? 0);
 		if (abs($orderedQty) < 0.00000001) {
 			return 0.0;
 		}
 
-		return round(((float) ($line->total_ht ?? 0)) * (((float) $certifiedQty) / $orderedQty), 8);
+		$lineTotal = $useMulticurrency
+			? (float) ($line->multicurrency_total_ht ?? 0)
+			: (float) ($line->total_ht ?? 0);
+
+		return round($lineTotal * (((float) $certifiedQty) / $orderedQty), 8);
 	}
 
 	public function getCompletionModeLabel($outputlangs = null)
