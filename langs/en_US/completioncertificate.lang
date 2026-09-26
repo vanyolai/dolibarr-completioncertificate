@@ -59,3 +59,4 @@ CompletionCertificateInvalidProgress=Invalid progress percentage. At most %s %% 
 CompletionCertificateProgressAcceptanceStatement=The Customer confirms that the Contractor has performed the works under the referenced order or contract to the progress level stated in this document. Subject to any remarks or reservations, the Customer accepts this performance.
 ProgressIncrementHint=Enter the additional progress certified by this certificate; cumulative progress is calculated automatically.
 IssueText=Place and date of issue
+CompletionCertificateValidated=The completion certificate has been validated.
