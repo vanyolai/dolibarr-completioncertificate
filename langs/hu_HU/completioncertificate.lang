@@ -59,3 +59,4 @@ CompletionCertificateInvalidProgress=Érvénytelen készültségi arány. Legfel
 CompletionCertificateProgressAcceptanceStatement=A Megrendelő igazolja, hogy a Vállalkozó a hivatkozott megrendelés vagy szerződés szerinti munkákat a jelen dokumentumban megjelölt készültségi foknak megfelelő mértékben teljesítette. A Megrendelő a teljesítést – az esetleges megjegyzések és fenntartások figyelembevételével – elfogadja.
 ProgressIncrementHint=A százalék az adott TIG-ben újonnan igazolt rész; az összesített készültséget a rendszer számolja.
 IssueText=Keltezés
+CompletionCertificateValidated=A teljesítésigazolás érvényesítve.
