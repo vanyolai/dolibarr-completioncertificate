@@ -155,7 +155,7 @@ if ($action === 'confirm_validate' && $confirm === 'yes' && $id > 0) {
 
 	if ($certificate->validate($user) > 0) {
 		completioncertificateRegeneratePdf($certificate, $langs);
-		setEventMessages($langs->trans('RecordValidated'), null, 'mesgs');
+		setEventMessages($langs->trans('CompletionCertificateValidated'), null, 'mesgs');
 		header('Location: '.$_SERVER['PHP_SELF'].'?id='.$id);
 		exit;
 	}
