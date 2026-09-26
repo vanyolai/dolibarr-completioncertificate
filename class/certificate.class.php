@@ -385,7 +385,7 @@ class Certificate extends CommonObject
 	}
 
 
-	public function createFromOrder($order, $user, $dateCompletion, $notePublic, array $requestedQty, $completionMode = self::MODE_LINES, $progressPercent = 0.0)
+	public function createFromOrder($order, $user, $dateCompletion, $notePublic, array $requestedQty, $completionMode = self::MODE_LINES, $progressPercent = 0.0, $issueText = '')
 	{
 		global $conf, $langs;
 
@@ -414,7 +414,13 @@ class Certificate extends CommonObject
 		}
 
 		$order->getLinesArray();
-		$orderTotalHt = (float) $order->total_ht;
+		$useMulticurrency = self::useOrderMulticurrency($order);
+		$currencyCode = self::getOrderCurrencyCode($order);
+		$orderTotalHt = self::getOrderNetAmount($order);
+		$issueText = trim((string) $issueText);
+		if ($issueText === '') {
+			$issueText = self::getDefaultIssueText($langs);
+		}
 		$totalHt = 0.0;
 		$linesToCreate = array();
 
@@ -452,7 +458,7 @@ class Certificate extends CommonObject
 					continue;
 				}
 
-				$lineTotalHt = self::calculateLineNetAmount($line, $qty);
+				$lineTotalHt = self::calculateLineNetAmount($line, $qty, $useMulticurrency);
 				$totalHt += $lineTotalHt;
 				$linesToCreate[] = array(
 					'line' => $line,
@@ -476,7 +482,7 @@ class Certificate extends CommonObject
 		}
 
 		$sql = 'INSERT INTO '.$this->db->prefix().'completioncertificate (';
-		$sql .= 'entity, ref, fk_soc, fk_commande, date_completion, completion_mode, progress_percent, order_total_ht, total_ht, note_public, status, fk_user_author, datec';
+		$sql .= 'entity, ref, fk_soc, fk_commande, date_completion, completion_mode, progress_percent, order_total_ht, total_ht, currency_code, issue_text, note_public, status, fk_user_author, datec';
 		$sql .= ') VALUES (';
 		$sql .= ((int) $conf->entity).',';
 		$sql .= "'".$this->db->escape($ref)."',";
@@ -487,6 +493,8 @@ class Certificate extends CommonObject
 		$sql .= ((float) $progressPercent).',';
 		$sql .= ((float) $orderTotalHt).',';
 		$sql .= ((float) $totalHt).',';
+		$sql .= "'".$this->db->escape($currencyCode)."',";
+		$sql .= "'".$this->db->escape(mb_substr($issueText, 0, 255))."',";
 		$sql .= "'".$this->db->escape($notePublic)."',";
 		$sql .= self::STATUS_DRAFT.',';
 		$sql .= ((int) $user->id).',';
@@ -548,7 +556,7 @@ class Certificate extends CommonObject
 	 * @param array<int,float> $requestedQty Requested quantities by order-line ID
 	 * @return int 1 on success, negative value on error
 	 */
-	public function updateDraftFromOrder($order, $user, $dateCompletion, $notePublic, array $requestedQty, $progressPercent = null)
+	public function updateDraftFromOrder($order, $user, $dateCompletion, $notePublic, array $requestedQty, $progressPercent = null, $issueText = '')
 	{
 		global $langs;
 
@@ -572,7 +580,13 @@ class Certificate extends CommonObject
 		}
 
 		$order->getLinesArray();
-		$orderTotalHt = (float) $order->total_ht;
+		$useMulticurrency = self::useOrderMulticurrency($order);
+		$currencyCode = self::getOrderCurrencyCode($order);
+		$orderTotalHt = self::getOrderNetAmount($order);
+		$issueText = trim((string) $issueText);
+		if ($issueText === '') {
+			$issueText = $this->getIssueText($langs);
+		}
 		$totalHt = 0.0;
 		$linesToCreate = array();
 
@@ -610,7 +624,7 @@ class Certificate extends CommonObject
 					continue;
 				}
 
-				$lineTotalHt = self::calculateLineNetAmount($line, $qty);
+				$lineTotalHt = self::calculateLineNetAmount($line, $qty, $useMulticurrency);
 				$totalHt += $lineTotalHt;
 				$linesToCreate[] = array(
 					'line' => $line,
@@ -632,6 +646,8 @@ class Certificate extends CommonObject
 		$sql .= ', progress_percent = '.((float) $progressPercent);
 		$sql .= ', order_total_ht = '.((float) $orderTotalHt);
 		$sql .= ', total_ht = '.((float) $totalHt);
+		$sql .= ", currency_code = '".$this->db->escape($currencyCode)."'";
+		$sql .= ", issue_text = '".$this->db->escape(mb_substr($issueText, 0, 255))."'";
 		$sql .= ", note_public = '".$this->db->escape($notePublic)."'";
 		$sql .= ' WHERE rowid = '.((int) $this->id);
 		$sql .= ' AND status = '.self::STATUS_DRAFT;
