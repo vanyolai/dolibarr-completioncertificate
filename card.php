@@ -511,7 +511,7 @@ if ($orderId > 0 && $id <= 0) {
 		print '<tr><td>'.$langs->trans('CurrentProgress').'</td><td class="right">'.price($certificate->progress_percent).' %</td></tr>';
 		print '<tr><td>'.$langs->trans('CumulativeProgress').'</td><td class="right">'.price($cumulativeProgress).' %</td></tr>';
 		print '<tr><td>'.$langs->trans('RemainingProgress').'</td><td class="right">'.price($remainingProgress).' %</td></tr>';
-		print '<tr><td>'.$langs->trans('CertifiedNetAmount').'</td><td class="right"><strong>'.price($certificate->total_ht).'</strong></td></tr>';
+		print '<tr><td>'.$langs->trans('CertifiedNetAmount').'</td><td class="right"><strong>'.price($certificate->total_ht).' '.dol_escape_htmltag($certificate->currency_code).'</strong></td></tr>';
 		print '</table>';
 	} else {
 		print '<div class="div-table-responsive-no-min"><table class="noborder centpercent">';
