@@ -157,7 +157,7 @@ class pdf_standard_certificate extends ModelePDFCertificate
 
 			$pdf->Ln(3);
 			$pdf->SetFont(pdf_getPDFFont($outputlangs), 'B', $fontSize);
-			$pdf->Cell(0, 5, $outputlangs->transnoentities('CertifiedNetAmount').' : '.price($object->total_ht), 0, 1, 'R');
+			$pdf->Cell(0, 5, $outputlangs->transnoentities('CertifiedNetAmount').' : '.price($object->total_ht).' '.$object->currency_code, 0, 1, 'R');
 			$pdf->SetFont(pdf_getPDFFont($outputlangs), '', $fontSize);
 		}
 
@@ -177,6 +177,7 @@ class pdf_standard_certificate extends ModelePDFCertificate
 		$this->_writeSignatureBlock($pdf, $object, $outputlangs, $fontSize);
 
 		$this->_writePageFooter($pdf, $object, $outputlangs, 0);
+		$this->_applyStatusWatermarkOverlay($pdf, $object, $outputlangs);
 		if (method_exists($pdf, 'AliasNbPages')) {
 			$pdf->AliasNbPages();
 		}
@@ -188,6 +189,32 @@ class pdf_standard_certificate extends ModelePDFCertificate
 		return 1;
 	}
 
+
+	/**
+	 * Draw status watermark after all page content so it stays on the top layer.
+	 */
+	protected function _applyStatusWatermarkOverlay(&$pdf, $object, $outputlangs)
+	{
+		$text = '';
+		if ((int) $object->status === $object::STATUS_DRAFT) {
+			$text = $outputlangs->transnoentities('Draft');
+		} elseif ((int) $object->status === $object::STATUS_CANCELED) {
+			$text = $outputlangs->transnoentities('Canceled');
+		}
+
+		if ($text === '') {
+			return;
+		}
+
+		$pageCount = method_exists($pdf, 'getNumPages') ? (int) $pdf->getNumPages() : 1;
+		for ($page = 1; $page <= $pageCount; $page++) {
+			$pdf->setPage($page);
+			$pdf->setPageOrientation('', true, 0);
+			pdf_watermark($pdf, $outputlangs, $this->page_hauteur, $this->page_largeur, 'mm', $text);
+		}
+	}
+
+
 	protected function _pagehead(&$pdf, $object, $outputlangs)
 	{
 		global $conf;
@@ -196,12 +223,6 @@ class pdf_standard_certificate extends ModelePDFCertificate
 		$defaultFontSize = pdf_getPDFFontSize($outputlangs);
 
 		pdf_pagehead($pdf, $outputlangs, $this->page_hauteur);
-
-		if ((int) $object->status === $object::STATUS_DRAFT) {
-			pdf_watermark($pdf, $outputlangs, $this->page_hauteur, $this->page_largeur, 'mm', $outputlangs->transnoentities('Draft'));
-		} elseif ((int) $object->status === $object::STATUS_CANCELED) {
-			pdf_watermark($pdf, $outputlangs, $this->page_hauteur, $this->page_largeur, 'mm', $outputlangs->transnoentities('Canceled'));
-		}
 
 		$posy = $this->marge_haute;
 		$titleWidth = 105;
@@ -336,12 +357,12 @@ class pdf_standard_certificate extends ModelePDFCertificate
 		$pdf->SetFont(pdf_getPDFFont($outputlangs), '', $fontSize);
 
 		$rows = array(
-			array($outputlangs->transnoentities('OrderNetAmount'), price($object->order_total_ht)),
+			array($outputlangs->transnoentities('OrderNetAmount'), price($object->order_total_ht).' '.$object->currency_code),
 			array($outputlangs->transnoentities('PreviouslyCertifiedProgress'), price($previousProgress).' %'),
 			array($outputlangs->transnoentities('CurrentProgress'), price($object->progress_percent).' %'),
 			array($outputlangs->transnoentities('CumulativeProgress'), price($cumulativeProgress).' %'),
 			array($outputlangs->transnoentities('RemainingProgress'), price($remainingProgress).' %'),
-			array($outputlangs->transnoentities('CertifiedNetAmount'), price($object->total_ht)),
+			array($outputlangs->transnoentities('CertifiedNetAmount'), price($object->total_ht).' '.$object->currency_code),
 		);
 
 		foreach ($rows as $row) {
@@ -435,7 +456,7 @@ class pdf_standard_certificate extends ModelePDFCertificate
 	{
 		$pdf->Ln(8);
 		$pdf->SetFont(pdf_getPDFFont($outputlangs), '', $fontSize);
-		$pdf->MultiCell(0, 5, $outputlangs->transnoentities('CompletionCertificatePlaceDate').': ........................................................', 0, 'L');
+		$pdf->MultiCell(0, 5, $outputlangs->transnoentities('CompletionCertificatePlaceDate').': '.$outputlangs->convToOutputCharset($object->getIssueText($outputlangs)), 0, 'L');
 
 		$pdf->Ln(8);
 		$signatureWidth = 70;
