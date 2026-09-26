@@ -62,3 +62,4 @@ IssueText=Keltezés
 CompletionCertificateValidated=A teljesítésigazolás érvényesítve.
 CompletionCertificateSaved=A teljesítésigazolás módosításai elmentve.
 CompletionCertificateDeleted=A teljesítésigazolás törölve.
+MailToSendCompletionCertificate=Teljesítésigazolás küldése
