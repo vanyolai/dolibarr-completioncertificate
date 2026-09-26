@@ -34,10 +34,10 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 
 	print '<td class="linkedcol-amount right nowraponall">';
 	if ((int) $objectlink->status === $objectlink::STATUS_CANCELED) {
-		print '<strike>'.price($objectlink->total_ht).'</strike>';
+		print '<strike>'.price($objectlink->total_ht).' '.dol_escape_htmltag($objectlink->currency_code).'</strike>';
 	} else {
 		$total += (float) $objectlink->total_ht;
-		print price($objectlink->total_ht);
+		print price($objectlink->total_ht).' '.dol_escape_htmltag($objectlink->currency_code);
 	}
 	print '</td>';
 
@@ -46,13 +46,21 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 	print '</tr>';
 }
 
-if (count($linkedObjectBlock) > 1) {
+$currencies = array();
+foreach ($linkedObjectBlock as $tmpObjectLink) {
+	if ((int) $tmpObjectLink->status !== $tmpObjectLink::STATUS_CANCELED && !empty($tmpObjectLink->currency_code)) {
+		$currencies[$tmpObjectLink->currency_code] = true;
+	}
+}
+
+if (count($linkedObjectBlock) > 1 && count($currencies) <= 1) {
 	print '<tr class="liste_total '.(empty($noMoreLinkedObjectBlockAfter) ? 'liste_sub_total' : '').'">';
 	print '<td>'.$langs->trans('Total').'</td>';
 	print '<td></td>';
 	print '<td></td>';
 	print '<td></td>';
-	print '<td class="right">'.price($total).'</td>';
+	$totalCurrency = count($currencies) === 1 ? (string) array_key_first($currencies) : '';
+	print '<td class="right">'.price($total).($totalCurrency !== '' ? ' '.dol_escape_htmltag($totalCurrency) : '').'</td>';
 	print '<td></td>';
 	print '<td></td>';
 	print '</tr>';
