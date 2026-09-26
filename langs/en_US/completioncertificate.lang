@@ -63,3 +63,10 @@ CompletionCertificateValidated=The completion certificate has been validated.
 CompletionCertificateSaved=The completion certificate changes have been saved.
 CompletionCertificateDeleted=The completion certificate has been deleted.
 MailToSendCompletionCertificate=Send completion certificate
+
+SubstCompletionCertificateRef=Completion certificate reference
+SubstCompletionCertificateOrderRef=Related order reference
+SubstCompletionCertificateDate=Completion date
+SubstCompletionCertificateCertifiedAmount=Certified net amount
+SubstCompletionCertificateCurrency=Currency
+SubstCompletionCertificateProgressPercent=Progress certified in this completion certificate
