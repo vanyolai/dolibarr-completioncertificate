@@ -62,3 +62,4 @@ IssueText=Place and date of issue
 CompletionCertificateValidated=The completion certificate has been validated.
 CompletionCertificateSaved=The completion certificate changes have been saved.
 CompletionCertificateDeleted=The completion certificate has been deleted.
+MailToSendCompletionCertificate=Send completion certificate
