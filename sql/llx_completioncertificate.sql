@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS llx_completioncertificate (
  progress_percent double(24,8) NOT NULL DEFAULT 0,
  order_total_ht double(24,8) NOT NULL DEFAULT 0,
  total_ht double(24,8) NOT NULL DEFAULT 0,
+ currency_code varchar(3),
+ issue_text varchar(255),
  note_public text,
  status smallint NOT NULL DEFAULT 0,
  fk_user_author integer,
