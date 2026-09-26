@@ -138,7 +138,7 @@ if ($action === 'update' && $id > 0) {
 
 	if ($result > 0) {
 		completioncertificateRegeneratePdf($certificate, $langs);
-		setEventMessages($langs->trans('RecordSaved'), null, 'mesgs');
+		setEventMessages($langs->trans('CompletionCertificateSaved'), null, 'mesgs');
 		header('Location: '.$_SERVER['PHP_SELF'].'?id='.$id);
 		exit;
 	}
@@ -214,7 +214,7 @@ if ($action === 'confirm_delete' && $confirm === 'yes' && $id > 0) {
 
 	$sourceOrderId = (int) $certificate->fk_commande;
 	if ($certificate->delete($user) > 0) {
-		setEventMessages($langs->trans('RecordDeleted'), null, 'mesgs');
+		setEventMessages($langs->trans('CompletionCertificateDeleted'), null, 'mesgs');
 		header('Location: '.dol_buildpath('/completioncertificate/order.php', 1).'?id='.$sourceOrderId);
 		exit;
 	}
