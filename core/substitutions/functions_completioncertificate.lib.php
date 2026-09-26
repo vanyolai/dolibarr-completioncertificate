@@ -58,5 +58,17 @@ function completioncertificate_completesubstitutionarray(&$substitutionarray, $l
 	$substitutionarray['__COMPLETION_DATE__'] = $completionDate;
 	$substitutionarray['__CERTIFIED_AMOUNT__'] = price((float) ($object->total_ht ?? 0), 0, $langs);
 	$substitutionarray['__CURRENCY__'] = (string) ($object->currency_code ?? '');
-	$substitutionarray['__PROGRESS_PERCENT__'] = price((float) ($object->progress_percent ?? 0), 0, $langs);
+
+	// In progress mode the percentage is stored explicitly. For line-based
+	// certificates derive the equivalent share from the certified net amount,
+	// so the same email placeholder can be used for both completion modes.
+	$progressPercent = (float) ($object->progress_percent ?? 0);
+	if ((int) ($object->completion_mode ?? 0) !== 1) {
+		$orderTotalHt = (float) ($object->order_total_ht ?? 0);
+		$totalHt = (float) ($object->total_ht ?? 0);
+		$progressPercent = abs($orderTotalHt) > 0.00000001
+			? ($totalHt / $orderTotalHt) * 100
+			: 0.0;
+	}
+	$substitutionarray['__PROGRESS_PERCENT__'] = price($progressPercent, 0, $langs);
 }
