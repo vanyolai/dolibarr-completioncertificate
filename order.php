@@ -72,6 +72,7 @@ if (!$resql) {
 
 	$count = 0;
 	$totalActive = 0.0;
+	$activeCurrencies = array();
 	while ($row = $db->fetch_object($resql)) {
 		$count++;
 		$certificate = new Certificate($db);
@@ -89,10 +90,13 @@ if (!$resql) {
 		print '<td class="center">'.dol_print_date($db->jdate($row->date_completion), 'day').'</td>';
 		print '<td class="right">';
 		if ($certificate->status === Certificate::STATUS_CANCELED) {
-			print '<strike>'.price($certificate->total_ht).'</strike>';
+			print '<strike>'.price($certificate->total_ht).' '.dol_escape_htmltag($certificate->currency_code).'</strike>';
 		} else {
 			$totalActive += (float) $certificate->total_ht;
-			print price($certificate->total_ht);
+			if (!empty($certificate->currency_code)) {
+				$activeCurrencies[$certificate->currency_code] = true;
+			}
+			print price($certificate->total_ht).' '.dol_escape_htmltag($certificate->currency_code);
 		}
 		print '</td>';
 		print '<td class="center">'.dol_print_date($db->jdate($row->datec), 'dayhour').'</td>';
@@ -100,11 +104,12 @@ if (!$resql) {
 		print '</tr>';
 	}
 
-	if ($count > 1) {
+	if ($count > 1 && count($activeCurrencies) <= 1) {
 		print '<tr class="liste_total">';
 		print '<td>'.$langs->trans('Total').'</td>';
 		print '<td></td><td></td>';
-		print '<td class="right">'.price($totalActive).'</td>';
+		$totalCurrency = count($activeCurrencies) === 1 ? (string) array_key_first($activeCurrencies) : '';
+		print '<td class="right">'.price($totalActive).($totalCurrency !== '' ? ' '.dol_escape_htmltag($totalCurrency) : '').'</td>';
 		print '<td></td><td></td>';
 		print '</tr>';
 	}
