@@ -951,7 +951,7 @@ class Certificate extends CommonObject
 	{
 		global $conf;
 
-		$prefix = 'TI-'.date('Y').'-';
+		$prefix = 'TI-'.dol_print_date(dol_now(), '%Y').'-';
 		$sql = 'SELECT MAX(CAST(SUBSTRING(ref, 9) AS UNSIGNED)) AS maxnum';
 		$sql .= ' FROM '.$this->db->prefix().'completioncertificate';
 		$sql .= ' WHERE entity = '.((int) $conf->entity);
